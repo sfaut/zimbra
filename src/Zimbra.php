@@ -387,6 +387,34 @@ class Zimbra
     }
 
     /**
+     * Upload multiple files in a row (but with multiple API calls)
+     * Returns an array of attachments ID (UUID form) on success, or throws an exception on failure
+     */
+    public function uploadAttachments(array $attachments)
+    {
+        $aids = []; // Attachments ID
+
+        foreach ($attachments as $attachment) {
+            $attachment = (object)$attachment; // Eventual array to object notation, flex
+            if (isset($attachment->basename, $attachment->file)) { // File upload
+                $aids[] = $this->uploadAttachmentFile($attachment->basename, $attachment->file);
+            } elseif (isset($attachment->basename, $attachment->buffer)) { // Buffer upload
+                $aids[] = $this->uploadAttachmentBuffer($attachment->basename, $attachment->buffer);
+            } elseif (isset($attachment->basename, $attachment->stream)) { // Stream upload
+                $aids[] = $this->uploadAttachmentStream($attachment->basename, $attachment->stream);
+            } else {
+                throw new \Exception(
+                    'Incorrect upload definition, '
+                    . 'basename must always be provided, '
+                    . 'and file, buffer or stream'
+                );
+            }
+        }
+
+        return $aids;
+    }
+
+    /**
      * Upload a $stream name $basename to Zimbra upload servlet
      * Stream is read from begining, after reading the pointer is set to end
      * Returns attachment ID (UUID form) on success, or throws an exception on failure
