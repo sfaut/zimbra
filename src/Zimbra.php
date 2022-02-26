@@ -112,6 +112,8 @@ class Zimbra
     // Returns JSON SOAP string
     // i.e. without Header or authToken
     /*
+        https://wiki.zimbra.com/wiki/Json_format_to_represent_soap
+
         https://gist.github.com/be1/562195
 
         * request encoded in UTF-8
