@@ -72,7 +72,7 @@ class Zimbra
     {
         return (object)[
             'id' => $message->id,
-            'mid' => $message->mid, // Message ID header, useful for query search => "msgid:..."
+            'mid' => substr($message->mid, 1, -1), // Message ID header without <>, useful for query => "msgid:..."
             'folder' => $message->l, // Folder ID
             'conversation' => $message->cid, // Conversation ID
             'timestamp' => date('Y-m-d H:i:s', $message->d / 1_000), // ms to s
