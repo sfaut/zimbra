@@ -395,7 +395,7 @@ class Zimbra
         $aids = []; // Attachments ID
 
         foreach ($attachments as $attachment) {
-            $attachment = (object)$attachment; // Eventual array to object notation, flex
+            $attachment = (object)$attachment; // Eventual array to object casting, for flex
             if (isset($attachment->basename, $attachment->file)) { // File upload
                 $aids[] = $this->uploadAttachmentFile($attachment->basename, $attachment->file);
             } elseif (isset($attachment->basename, $attachment->buffer)) { // Buffer upload
