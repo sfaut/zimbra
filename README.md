@@ -4,6 +4,8 @@ Read and send Zimbra messages. Attachments are managed.
 
 Based on Zimbra 8 SOAP API.
 
+https://files.zimbra.com/docs/soap_api/8.8.15/api-reference/index.html
+
 ## Philosophy
 
 - KISS – Fire & Forget
