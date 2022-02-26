@@ -72,6 +72,7 @@ class Zimbra
     {
         return (object)[
             'id' => $message->id,
+            'mid' => $message->mid, // Message ID header, useful for query search => "msgid:..."
             'folder' => $message->l, // Folder ID
             'conversation' => $message->cid, // Conversation ID
             'timestamp' => date('Y-m-d H:i:s', $message->d / 1_000), // ms to s
@@ -80,9 +81,8 @@ class Zimbra
             'fragment' => $message->fr ?? '',
             'flags' => $message->f ?? '',
             'size' => $message->s,
-            // 'revision' => $message->rev,
             'body' => $this->searchBody($message->mp ?? []),
-            'attachments' => [],
+            'attachments' => $this->searchAttachments($message->mp ?? []),
         ];
     }
 
@@ -180,9 +180,28 @@ class Zimbra
     }
 
     // Search attachments in response message
-    protected function searchMessageAttachments()
+    protected function searchAttachments(array $parts)
     {
+        $attachments = [];
 
+        foreach ($parts as $part) {
+            if ($part->cd ?? null === 'attachment') {
+                $attachments[] = (object)[
+                    'part' => $part->part,
+                    'type' => $part->ct,
+                    'size' => $part->s,
+                    'basename' => $part->filename,
+                ];
+            }
+            if (isset($part->mp)) {
+                $attachments = array_merge(
+                    $attachments,
+                    $this->searchAttachments($part->mp),
+                );
+            }
+        }
+
+        return $attachments;
     }
 
     public static function authenticate(string $host, string $email, string $password)
@@ -268,14 +287,14 @@ class Zimbra
         $messages = $response->Body->SearchResponse->m ?? [];
         $messages = array_reverse($messages); // Olders first
 
-        file_put_contents(__DIR__ . '/dump-raw.txt', json_encode($messages, JSON_PRETTY_PRINT));
+file_put_contents(__DIR__ . '/dump-raw.json', json_encode($messages, JSON_PRETTY_PRINT));
 
         $result = [];
         foreach ($messages as $message) {
             $result[] = $this->createMessage($message);
         }
 
-        file_put_contents(__DIR__ . '/dump-parsed.txt', json_encode($result, JSON_PRETTY_PRINT));
+file_put_contents(__DIR__ . '/dump-parsed.json', json_encode($result, JSON_PRETTY_PRINT));
 
         return $result;
     }
