@@ -25,7 +25,7 @@ class Zimbra
         'b' => 'bcc',
         'r' => 'reply-to',
         's' => 'sender, read-receipt',
-        'n' => 'notification',
+        'n' => 'notification', // read-receipt notification
         'rf' => 'resent-from',
     ];
 
