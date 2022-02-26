@@ -10,7 +10,7 @@ Based on Zimbra 8 SOAP API.
 
 ## Example -- Connection
 
-```
+```php
 <?php
 
 use sfaut\Zimbra;
@@ -30,7 +30,7 @@ $zimbra = Zimbra::authenticate($host, $user, $password);
 
 An exception is raised when authentication or an other `sfaut\Zimbra` statement failed. So, you should encapsulate statements with `try/catch/finally` blocks.
 
-```
+```php
 try {
     $zimbra = Zimbra::authenticate($host, $user, $password);
     // ...
@@ -42,7 +42,7 @@ try {
 
 ## Example -- Get mailbox messages
 
-```
+```php
 $folder = '/Inbox/My folder';
 $messages = $zimbra->getMessages($folder);
 foreach ($messages as $i => $message) {
