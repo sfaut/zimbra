@@ -97,6 +97,28 @@ class Zimbra
         ];
     }
 
+    // Structured search to Zimbra query string :
+    // ['some search'] => '"some search"'
+    // ['in' => '/inbox/subdir', 'date' => '>=-3days'] => 'in:"/inbox/subdir" date:">=-3days"'
+    // $parameters can be object or array
+    protected function createQueryString($parameters)
+    {
+        $query = '';
+
+        foreach ($parameters as $name => $value) {
+            $value = '"' . str_replace('"', '""', $value) . '"';
+            if (is_int($name)) {
+                $query .= "{$value} ";
+            } else {
+                $query .= "{$name}:{$value} ";
+            }
+        }
+
+        $query = substr($query, 0, -1);
+
+        return $query;
+    }
+
     // Prepares protected http context for unauthenticated request
     // Returns JSON SOAP string
     // i.e. without Header or authToken
@@ -199,12 +221,17 @@ class Zimbra
      * Parameters :
      * in => folder path
      * under => specifies searching a folder and its sub-folders
-     * has => specifies an attribute that the message must have, the types of object you can specify are "attachment", "phone", or "url", for example, has:attachment would find all messages which contain one or more attachments of any type
-     * filename => specifies an attachment file name, for example filename:query.txt would find messages with a file attachment named "query.txt"
+     * has => specifies an attribute that the message must have,
+     *        the types of object you can specify are "attachment", "phone", or "url",
+     *        for example, has:attachment would find all messages
+     *        which contain one or more attachments of any type
+     * filename => specifies an attachment file name, for example filename:query.txt
+     *             would find messages with a file attachment named "query.txt"
      * subject => message subject
      * from => sender address/name
      * to => recipient address/name
-     * toccme => Same as "from:" except that it specifies me as one of the people to whom the email was addressed in the TO: or cc: header
+     * toccme => Same as "from:" except that it specifies me as one of the people
+     *           to whom the email was addressed in the TO: or cc: header
      * cc => ...
      * content => message content
      * not in|subject|from|to => ...
@@ -212,23 +239,11 @@ class Zimbra
      * date => ">=-3days" / "yyyy-mm-dd"
      * after => ...
      * before => ...
-     * is => read|unrad|...
+     * is => read|unread|...
      */
     public function getSearch(array $parameters, int $limit = 1_000, int $offset = 0): array
     {
-        // Structured search to Zimbra query string :
-        // ['some search'] => '"some search"'
-        // ['in' => '/inbox/subdir', 'date' => '>=-3days'] => 'in:"/inbox/subdir" date:">=-3days"'
-        $query = '';
-        foreach ($parameters as $key => $value) {
-            $value = '"' . str_replace('"', '""', $value) . '"';
-            if (is_int($key)) {
-                $query .= "{$value} ";
-            } else {
-                $query .= "{$key}:{$value} ";
-            }
-        }
-        $query = substr($query, 0, -1);
+        $query = $this->createQueryString($parameters);
 
         $this->prepareAuthenticatedRequest([
             // SearchDirectory request => Zimbra 9
