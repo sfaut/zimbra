@@ -72,7 +72,7 @@ class Zimbra
     {
         return (object)[
             'id' => $message->id,
-            'mid' => substr($message->mid, 1, -1), // Message ID header without <>, useful for query => "msgid:..."
+            'mid' => substr($message->mid, 1, -1), // Header message ID without <>, useful for query => "msgid:..."
             'folder' => $message->l, // Folder ID
             'conversation' => $message->cid, // Conversation ID
             'timestamp' => date('Y-m-d H:i:s', $message->d / 1_000), // ms to s
@@ -185,9 +185,10 @@ class Zimbra
         $attachments = [];
 
         foreach ($parts as $part) {
-            if ($part->cd ?? null === 'attachment') {
+            if (in_array($part->cd ?? null, ['inline', 'attachment'])) {
                 $attachments[] = (object)[
                     'part' => $part->part,
+                    'disposition' => $part->cd,
                     'type' => $part->ct,
                     'size' => $part->s,
                     'basename' => $part->filename,
@@ -287,14 +288,14 @@ class Zimbra
         $messages = $response->Body->SearchResponse->m ?? [];
         $messages = array_reverse($messages); // Olders first
 
-file_put_contents(__DIR__ . '/dump-raw.json', json_encode($messages, JSON_PRETTY_PRINT));
-
         $result = [];
         foreach ($messages as $message) {
             $result[] = $this->createMessage($message);
         }
 
-file_put_contents(__DIR__ . '/dump-parsed.json', json_encode($result, JSON_PRETTY_PRINT));
+        // Temporary statements, for dev purpose
+        file_put_contents(__DIR__ . '/dump-raw.json', json_encode($messages, JSON_PRETTY_PRINT));
+        file_put_contents(__DIR__ . '/dump-parsed.json', json_encode($result, JSON_PRETTY_PRINT));
 
         return $result;
     }
