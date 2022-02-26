@@ -387,7 +387,24 @@ class Zimbra
     }
 
     /**
-     * Upload a $buffer name $basename to Zimbra upload servlet
+     * Upload a $file named $basename to Zimbra upload servlet
+     * Returns attachment ID (UUID form) on success, or throws an exception on failure
+     */
+    public function uploadAttachmentFile(string $basename, string $file)
+    {
+        $buffer = @file_get_contents($file);
+
+        if ($buffer === false) {
+            throw new \Exception("Unable to read file {$file} to attach");
+        }
+
+        $aid = $this->uploadAttachmentBuffer($basename, $buffer);
+
+        return $aid;
+    }
+
+    /**
+     * Upload a $buffer named $basename to Zimbra upload servlet
      * Returns attachment ID (UUID form) on success, or throws an exception on failure
      */
     public function uploadAttachmentBuffer(string $basename, string $buffer)
