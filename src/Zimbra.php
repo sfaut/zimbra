@@ -2,6 +2,12 @@
 
 namespace sfaut;
 
+// Dependencies :
+// -- ext PECL mailparse for Zimbra::getAttachments()
+// -- mbstring for mailparse
+//
+// $ sudo apt install php-mailparse
+
 class Zimbra
 {
     protected string $host;     // Scheme and host
