@@ -387,6 +387,19 @@ class Zimbra
     }
 
     /**
+     * Upload a $stream name $basename to Zimbra upload servlet
+     * Stream is read from begining, after reading the pointer is set to end
+     * Returns attachment ID (UUID form) on success, or throws an exception on failure
+     */
+    public function uploadAttachmentStream(string $basename, $stream)
+    {
+        rewind($stream);
+        $buffer = stream_get_contents($stream);
+        $aid = $this->uploadAttachmentBuffer($basename, $buffer);
+        return $aid;
+    }
+
+    /**
      * Upload a $file named $basename to Zimbra upload servlet
      * Returns attachment ID (UUID form) on success, or throws an exception on failure
      */
