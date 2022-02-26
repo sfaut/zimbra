@@ -21,18 +21,18 @@ $host = 'https://zimbra.example.net';
 $user = 'root@example.net';
 $password = 'M;P455w0r|)';
 
-$z = Zimbra::authenticate($host, $user, $password);
+$zimbra = Zimbra::authenticate($host, $user, $password);
 ```
 
 > To shorten following examples, `use`, `require` and authentication will be snipped.
 
-## Example -- Errors management
+## Example -- Error management
 
-An exception is raised when authentication, or other `sfaut\Zimbra` statement, failed. So, you should encapsulate statements with `try/catch/finally` blocks.
+An exception is raised when authentication or an other `sfaut\Zimbra` statement failed. So, you should encapsulate statements with `try/catch/finally` blocks.
 
 ```
 try {
-    $z = Zimbra::authenticate($host, $user, $password);
+    $zimbra = Zimbra::authenticate($host, $user, $password);
     // ...
 } catch (Exception $e) {
     echo $e->getMessage();
@@ -40,12 +40,16 @@ try {
 }
 ```
 
-## Example -- Get messages
+## Example -- Get mailbox messages
 
 ```
-$folder = 'Inbox/My folder';
-$messages = $z->getMessages($folder);
-foreach ($messages as $message) {
-    // ...
+$folder = '/Inbox/My folder';
+$messages = $zimbra->getMessages($folder);
+foreach ($messages as $i => $message) {
+    printf(
+        "%6d %s %40s %s\r\n",
+        $message->id, $message->timestamp,
+        $message->from[0], $message->subject,
+    );
 }
 ```
