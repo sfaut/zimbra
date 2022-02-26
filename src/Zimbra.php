@@ -60,16 +60,21 @@ class Zimbra
             'conversation' => $message->cid, // Conversation ID
             'timestamp' => date('Y-m-d H:i:s', $message->d / 1_000), // ms to s
             'subject' => $message->su,
-            'addresses' => (object)[
-                'from' => $this->searchEmailAddresses($message->e, 'f'),
-                'to' => $this->searchEmailAddresses($message->e, 't'),
-                'cc' => $this->searchEmailAddresses($message->e, 'c'),
-                'bcc' => $this->searchEmailAddresses($message->e, 'b'),
-                'reply-to' => $this->searchEmailAddresses($message->e, 'r'),
-                'sender, read-receipt' => $this->searchEmailAddresses($message->e, 's'),
-                'notification' => $this->searchEmailAddresses($message->e, 'n'),
-                'resent-from' => $this->searchEmailAddresses($message->e, 'rf'),
-            ],
+            'addresses' => array_reduce($message->e, function ($result, $address) {
+                $keys = [
+                    'f' => 'from',
+                    't' => 'to',
+                    'c' => 'cc',
+                    'b' => 'bcc',
+                    'r' => 'reply-to',
+                    's' => 'sender, read-receipt',
+                    'n' => 'notification',
+                    'rf' => 'resent-from',
+                ];
+                $result->{$keys[$address->t]} ??= [];
+                $result->{$keys[$address->t]}[] = $address->a;
+                return $result;
+            }, (object)[]),
             'fragment' => $message->fr ?? '',
             'flags' => $message->f ?? '',
             'size' => $message->s,
@@ -110,22 +115,6 @@ class Zimbra
         echo "\n===================================\n";
         stream_context_set_option($this->context, 'http', 'content', $request);
         return $request;
-    }
-
-    // Filter addresses within their type
-    // Used to hydrate message->addresses
-    // $type is a message type (1 char)
-    protected function searchEmailAddresses(array $addresses, string $type): array
-    {
-        $result = [];
-
-        foreach ($addresses as $address) {
-            if ($address->t === $type) {
-                $result[] = $address->a;
-            }
-        }
-
-        return $result;
     }
 
     // Search body in response message
