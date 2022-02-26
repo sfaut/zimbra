@@ -1,22 +1,5 @@
 <?php
 
-/*
-    https://gist.github.com/be1/562195
-
-    * request encoded in UTF-8
-    * start with '{' for server to identify JSON content
-    * do not include "Envelope" object
-    * elements specified as "name": { ... }
-    * attributes specified as "name": "value"
-    * namespace attribute specified as "_jsns": "ns-uri"
-    * element text content specified as "_content": "content"
-    * element list specified as "name": [ ... ]
-
-    The response format is XML by default. To change, specify a "format"
-    element in the request's Header element with a "type" attribute.
-    The value must be either "xml" or "js".
-*/
-
 namespace sfaut;
 
 class Zimbra
@@ -92,7 +75,7 @@ class Zimbra
             'flags' => $message->f ?? '',
             'size' => $message->s,
             // 'revision' => $message->rev,
-            'body' => $this->searchMessageBody($message->mp ?? []),
+            'body' => $this->searchBody($message->mp ?? []),
             'attachments' => [],
         ];
     }
@@ -122,6 +105,22 @@ class Zimbra
     // Prepares protected http context for unauthenticated request
     // Returns JSON SOAP string
     // i.e. without Header or authToken
+    /*
+        https://gist.github.com/be1/562195
+
+        * request encoded in UTF-8
+        * start with '{' for server to identify JSON content
+        * do not include "Envelope" object
+        * elements specified as "name": { ... }
+        * attributes specified as "name": "value"
+        * namespace attribute specified as "_jsns": "ns-uri"
+        * element text content specified as "_content": "content"
+        * element list specified as "name": [ ... ]
+
+        The response format is XML by default. To change, specify a "format"
+        element in the request's Header element with a "type" attribute.
+        The value must be either "xml" or "js".
+    */
     protected function prepareUnauthenticatedRequest(array $body): string
     {
         $request = ['Body' => $body];
@@ -145,9 +144,6 @@ class Zimbra
             'Body' => $body,
         ];
         $request = json_encode($request);
-        echo "\n===================================\n";
-        echo $request;
-        echo "\n===================================\n";
         stream_context_set_option($this->context, 'http', 'content', $request);
         return $request;
     }
@@ -156,7 +152,7 @@ class Zimbra
     // Can be deep depending the message constitution
     // Stop at the 1st record found
     // Ex. : { part: 1, ct: text/plain, s: 22, body: true, content: ... }
-    protected function searchMessageBody(array $parts): ?object
+    protected function searchBody(array $parts): ?object
     {
         foreach ($parts as $part) {
             if ($part->body ?? null === true) {
@@ -168,7 +164,7 @@ class Zimbra
                 ];
             }
             if (isset($part->mp)) {
-                $body = $this->searchMessageBody($part->mp);
+                $body = $this->searchBody($part->mp);
                 if ($body !== null) {
                     return $body;
                 }
@@ -390,22 +386,44 @@ class Zimbra
         return [];
     }
 
-    protected function uploadAttachmentFile(string $filename, string $file)
+    /**
+     * Upload a $buffer name $basename to Zimbra upload servlet
+     * Returns attachment ID (UUID form) on success, or throws an exception on failure
+     */
+    public function uploadAttachmentBuffer(string $basename, string $buffer)
     {
-        $buffer = @file_get_contents($file);
+        $basename = rawurlencode($basename); // Good encoding for HTTP header value ?
 
-        if ($buffer === false) {
-            throw new \Exception('Unable to read file to attach');
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'POST',
+                'header' => [
+                    'Content-Type: application/octet-stream',
+                    "Content-Disposition: attachment; filename=\"{$basename}\"",
+                    "Cookie: ZM_AUTH_TOKEN={$this->session}",
+                    'Content-Transfer-Encoding: binary',
+                ],
+                'content' => $buffer,
+            ],
+        ]);
+
+        // raw response : code,client_id,aid
+        // raw,extended response gives unvalid CSV, ex. :
+        // 200,'null',[{"aid":"63f347f0-df57-...","ct":"text/plain","filename":"name.txt","s":73}]
+        // => JSON not delimited and not escaped!
+        $response = @file_get_contents($this->upload, false, $context);
+
+        if ($response === false) {
+            throw new \Exception("Upload of file {$basename} failed");
         }
 
-        $aid = $this->uploadAttachmentBuffer($filename, $buffer);
+        [$code, $request_id, $aid] = str_getcsv($response, ',', "'", '');
+
+        if ($code !== '200') {
+            throw new \Exception("Upload of file {$basename} failed with response code {$code}");
+        }
 
         return $aid;
-    }
-
-    protected function uploadAttachmentBuffer(string $filename, string $buffer)
-    {
-        return '';
     }
 
     // Send a message
