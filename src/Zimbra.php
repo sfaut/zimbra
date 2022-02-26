@@ -17,6 +17,23 @@ class Zimbra
     protected ?string $session; // Session token
     protected $context;         // Base stream context
 
+    // Messages flags
+    protected $flags = [
+        'u' => 'Unread',
+        'f' => 'Flagged',
+        'a' => 'Has attachment',
+        'r' => 'Replied',
+        's' => 'Sent by me',
+        'w' => 'Forwarded',
+        'v' => 'Calendar invite',
+        'd' => 'Draft',
+        'x' => 'IMAP-\Deleted',
+        'n' => 'Notification sent',
+        '!' => 'Urgent',
+        '?' => 'Low-priority',
+        '+' => 'Priority',
+    ];
+
     // Internal Zimbra email addresses types
     protected array $types = [
         'f' => 'from',
