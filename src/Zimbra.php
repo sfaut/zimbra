@@ -409,14 +409,14 @@ class Zimbra
      */
     public function uploadAttachmentBuffer(string $basename, string $buffer)
     {
-        $basename = rawurlencode($basename); // Good encoding for HTTP header value ?
+        $basename_encoded = rawurlencode($basename); // Good encoding for HTTP header value ?
 
         $context = stream_context_create([
             'http' => [
                 'method' => 'POST',
                 'header' => [
                     'Content-Type: application/octet-stream',
-                    "Content-Disposition: attachment; filename=\"{$basename}\"",
+                    "Content-Disposition: attachment; filename=\"{$basename_encoded}\"",
                     "Cookie: ZM_AUTH_TOKEN={$this->session}",
                     'Content-Transfer-Encoding: binary',
                 ],
