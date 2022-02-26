@@ -24,7 +24,7 @@ $password = 'M;P455w0r|)';
 $zimbra = Zimbra::authenticate($host, $user, $password);
 ```
 
-> To shorten following examples, `use`, `require` and authentication will be snipped.
+> To shorten following examples, `use`, `require` and authentication will be snipped. I assume `sfaut\Zimbra` is instanciate in `$zimbra`.
 
 ## Example -- Error management
 
