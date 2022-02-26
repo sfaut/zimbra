@@ -28,6 +28,18 @@ class Zimbra
     protected ?string $session; // Session token
     protected $context;         // Base stream context
 
+    // Internal Zimbra email addresses types
+    protected array $types = [
+        'f' => 'from',
+        't' => 'to',
+        'c' => 'cc',
+        'b' => 'bcc',
+        'r' => 'reply-to',
+        's' => 'sender, read-receipt',
+        'n' => 'notification',
+        'rf' => 'resent-from',
+    ];
+
     /**
      * $host : ex. "https://webmail.free.fr", no trailing slash needed
      * $email : ex. "my-email", or "my-email@free.fr"
@@ -50,6 +62,21 @@ class Zimbra
         ]);
     }
 
+    protected function createAddresses(object $message)
+    {
+        return array_reduce(
+            $message->e,
+            function ($result, $address) {
+                $result->{$this->types[$address->t]}[] = $address->a;
+                return $result;
+            },
+            (object)array_combine(
+                array_values($this->types),
+                array_fill(0, count($this->types), []),
+            ),
+        );
+    }
+
     // Convert a Zimbra message object to a pretty object
     // https://files.zimbra.com/docs/soap_api/8.8.15/api-reference/zimbraMail/Search.html#tbl-SearchResponse-m
     protected function createMessage(object $message)
@@ -60,21 +87,7 @@ class Zimbra
             'conversation' => $message->cid, // Conversation ID
             'timestamp' => date('Y-m-d H:i:s', $message->d / 1_000), // ms to s
             'subject' => $message->su,
-            'addresses' => array_reduce($message->e, function ($result, $address) {
-                $keys = [
-                    'f' => 'from',
-                    't' => 'to',
-                    'c' => 'cc',
-                    'b' => 'bcc',
-                    'r' => 'reply-to',
-                    's' => 'sender, read-receipt',
-                    'n' => 'notification',
-                    'rf' => 'resent-from',
-                ];
-                $result->{$keys[$address->t]} ??= [];
-                $result->{$keys[$address->t]}[] = $address->a;
-                return $result;
-            }, (object)[]),
+            'addresses' => $this->createAddresses($message),
             'fragment' => $message->fr ?? '',
             'flags' => $message->f ?? '',
             'size' => $message->s,
