@@ -17,7 +17,7 @@ class Zimbra
     protected ?string $session; // Session token
     protected $context;         // Base stream context
 
-    // Messages flags
+    // Messages' flags
     protected $flags = [
         'u' => 'Unread',
         'f' => 'Flagged',
@@ -157,7 +157,7 @@ class Zimbra
     // Prepares protected http context for authenticated request
     // Returns JSON SOAP string
     // i.e. with Header and authToken
-    protected function prepareAuthenticatedRequest($body): string
+    protected function prepareAuthenticatedRequest(array $body): string
     {
         $request = [
             'Header' => [
@@ -432,30 +432,38 @@ class Zimbra
     }
 
     /**
+     * Upload a file
+     * Returns an attachment ID (UUID form) on success, or throws an exception on failure
+     */
+    public function uploadAttachment($attachment)
+    {
+        $attachment = (object)$attachment; // Eventual array to object casting, for flex
+        if (isset($attachment->basename, $attachment->file)) { // File upload
+            $aid = $this->uploadAttachmentFile($attachment->basename, $attachment->file);
+        } elseif (isset($attachment->basename, $attachment->buffer)) { // Buffer upload
+            $aid = $this->uploadAttachmentBuffer($attachment->basename, $attachment->buffer);
+        } elseif (isset($attachment->basename, $attachment->stream)) { // Stream upload
+            $aid = $this->uploadAttachmentStream($attachment->basename, $attachment->stream);
+        } else {
+            throw new \Exception(
+                'Incorrect upload definition, '
+                . 'basename must always be provided, '
+                . 'and file, buffer or stream'
+            );
+        }
+        return $aid;
+    }
+
+    /**
      * Upload multiple files in a row (but with multiple API calls)
-     * Returns an array of attachments ID (UUID form) on success, or throws an exception on failure
+     * Returns an array of attachments ID (UUID form)
      */
     public function uploadAttachments(array $attachments)
     {
         $aids = []; // Attachments ID
-
         foreach ($attachments as $attachment) {
-            $attachment = (object)$attachment; // Eventual array to object casting, for flex
-            if (isset($attachment->basename, $attachment->file)) { // File upload
-                $aids[] = $this->uploadAttachmentFile($attachment->basename, $attachment->file);
-            } elseif (isset($attachment->basename, $attachment->buffer)) { // Buffer upload
-                $aids[] = $this->uploadAttachmentBuffer($attachment->basename, $attachment->buffer);
-            } elseif (isset($attachment->basename, $attachment->stream)) { // Stream upload
-                $aids[] = $this->uploadAttachmentStream($attachment->basename, $attachment->stream);
-            } else {
-                throw new \Exception(
-                    'Incorrect upload definition, '
-                    . 'basename must always be provided, '
-                    . 'and file, buffer or stream'
-                );
-            }
+            $aids[] = $this->uploadAttachment($attachment);
         }
-
         return $aids;
     }
 
@@ -529,12 +537,113 @@ class Zimbra
         return $aid;
     }
 
-    // Send a message
-    public function sendMessage(
+    /**
+     * Convert adresses to Zimbra format for SOAP request
+     * Ex. ['to' => ['user@exemple.net']] to [['t' => 't', 'a' => 'user@exemple.net']]
+     */
+    protected function prepareAddresses(array $addresses)
+    {
+        // sfaut\Zimbra type to Zimbra type
+        // Ex. ['to' => 't']
+        $types = array_flip($this->types);
+
+        $result = [];
+        foreach ($addresses as $type => $type_addresses) {
+            if (!is_array($type_addresses)) {
+                $type_addresses = [$type_addresses];
+            }
+            foreach ($type_addresses as $address) {
+                $result[] = ['t' => $types[$type], 'a' => $address];
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Convert uploads array to Zimbra format for SOAP request
+     * Returns an array of attachments IDs
+     */
+    protected function prepareAttachments(array $attachments)
+    {
+        $aids = [];
+
+        foreach ($attachments as $attachment) {
+            if (is_string($attachment)) { // Assuming an attachment ID
+                $aids[] = $attachment;
+            } else { // File to upload
+                $aids[] = $this->uploadAttachment($attachment);
+            }
+        }
+
+        return $aids;
+    }
+
+    /**
+     * Send a message
+     * https://files.zimbra.com/docs/soap_api/8.8.15/api-reference/zimbraMail/SendMsg.html
+     *
+     * $addresses
+     *      Array [$type => $address/es, etc.], $address/es can be an array of addresses or an unique string address
+     *      Ex. ['to' => 'admin@exemple.net', 'cc' => ['ml.exemple.net', 'sup@exemple.net']]
+     *
+     * $subject
+     *      Message subject string
+     *
+     * $body
+     *      Message body string
+     *      text/plain by default
+     *
+     * $attachments
+     *      Array, multiple files format are accepted (array or object)
+     *      Upload a file : { basename: "file.csv", file: "/path/to/file.csv" }
+     *      Upload a buffer : { basename: "file.csv", buffer: $buffer }
+     *      Upload a stream : { basename : "file.csv", stream: $stream }
+     *      Attach a file previously uploaded with Zimbra::uploadAttachment[Buffer|File|Stream]() : string attachment ID
+     *
+     * Returns the Zimbra message sent structure
+     *
+     * TODO: return a sfaut\Zimbra message structure or null if fails
+     */
+    public function send(
         array $addresses, string $subject, string $body,
-        array $attachments = [],
-        array $options = []
+        array $attachments = []
     ) {
-        return (object)[];
+
+        $request = [
+            'SendMsgRequest' => [
+                '_jsns' => 'urn:zimbraMail',
+                'noSave' => 0,
+                'fetchSavedMsg' => 1,
+                'm' => [
+                    'e' => $this->prepareAddresses($addresses),
+                    'su' => $subject,
+                    'f' => $flags ?? '',
+                    'mp' => [
+                        'ct' => $type ?? 'text/plain',
+                        'content' => ['_content' => $body],
+                    ],
+                ],
+            ],
+        ];
+
+        // We must not send an empty aid, elsewhere Zimbra fails
+        if (!empty($attachments)) {
+            $aids = $this->prepareAttachments($attachments);
+            $aids = implode(',', $aids);
+            $request['SendMsgRequest']['m']['attach']['aid'] = $aids;
+        }
+
+        $this->prepareAuthenticatedRequest($request);
+
+        $response = @file_get_contents($this->soap, false, $this->context);
+
+        if ($response === false) {
+            throw new \Exception('Error while sending message');
+        }
+
+        $response = json_decode($response);
+
+        return $response;
     }
 }
