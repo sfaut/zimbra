@@ -97,6 +97,19 @@ class Zimbra
         ];
     }
 
+    // Converts a Zimbra part/attachment object to a pretty object
+    // https://files.zimbra.com/docs/soap_api/8.8.15/api-reference/zimbraMail/Search.html#tbl-SearchResponse-mp
+    protected function createAttachment(object $part)
+    {
+        return (object)[
+            'part' => $part->part,
+            'disposition' => $part->cd,
+            'type' => $part->ct,
+            'size' => $part->s,
+            'basename' => $part->filename,
+        ];
+    }
+
     // Structured search to Zimbra query string :
     // ['some search'] => '"some search"'
     // ['in' => '/inbox/subdir', 'date' => '>=-3days'] => 'in:"/inbox/subdir" date:">=-3days"'
@@ -199,13 +212,7 @@ class Zimbra
 
         foreach ($parts as $part) {
             if (in_array($part->cd ?? null, ['inline', 'attachment'])) {
-                $attachments[] = (object)[
-                    'part' => $part->part,
-                    'disposition' => $part->cd,
-                    'type' => $part->ct,
-                    'size' => $part->s,
-                    'basename' => $part->filename,
-                ];
+                $attachments[] = $this->createAttachment($part);
             }
             if (isset($part->mp)) {
                 $attachments = array_merge(
@@ -630,7 +637,6 @@ class Zimbra
         array $addresses, string $subject, string $body,
         array $attachments = []
     ) {
-
         $request = [
             'SendMsgRequest' => [
                 '_jsns' => 'urn:zimbraMail',
