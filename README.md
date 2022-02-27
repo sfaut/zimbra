@@ -92,7 +92,19 @@ $zimbra->send($addresses, $subject, $body);
 
 ## Send message with attachment
 
-Declarative way to add attachments :
+4th `Zimbra::send()` parameter is an array of **attachments**.
+
+Basically, an **attachment** is an array or an object containing 2 values :
+- `basename` : the name + extension of the attached file
+- A type `buffer`, `file` or `stream` and its related value
+
+Types description :
+- `file` : the value represents the file full path to attach
+- `buffer` : the value represents the raw data to attach
+- `stream` : the value is the stream resource to attach
+- Attachment ID : a string given when uploading a file previously
+
+Attach a file to a message :
 
 ```php
 $attachments = [
@@ -102,11 +114,19 @@ $attachments = [
 $zimbra->send($addresses, $subject, $body, $attachments);
 ```
 
-You can too upload different types of data sources :
-- `file` : the value represents the fullpath to the file to attach
-- `buffer` : the value represents the raw data to attach
-- `stream` : the value is a stream resource to attach
-- Attachment ID : a string given when uploading a file previously
+Wen can attach multiple files in a row :
+
+```php
+$attachments = [
+    ['basename' => 'data-1.csv', 'file' => '/path/to/data-1.csv'],
+    ['basename' => 'data-2.csv', 'file' => '/path/to/data-2.csv'],
+    ['basename' => 'data-3.csv', 'file' => '/path/to/data-3.csv'],
+];
+
+$zimbra->send($addresses, $subject, $body, $attachments);
+```
+
+And we can mix different types of data sources :
 
 ```php
 $buffer = 'Contents that will be attached to a file';
@@ -120,4 +140,28 @@ $attachments = [
 ];
 
 $zimbra->send($addresses, $subject, $body, $attachments);
+```
+
+Eeach attachment is uploaded when sending message.
+That can be unnecessarily resource-consuming if we send multiple messages with the same attachments.
+To save resources you can first upload files with `Zimbra::uploadAttachment()`, then attach them to messages.
+
+```php
+// ⚠️ YOU SHOULD NOT DO THIS
+// The same file uploaded 3 times for 3 messages
+$attachments = [
+    ['basename' => 'decennial-data.csv', 'file' => '/path/to/huge-data.csv'],
+];
+$zimbra->send($addresses_1, $subject, $body, $attachments);
+$zimbra->send($addresses_2, $subject, $body, $attachments);
+$zimbra->send($addresses_3, $subject, $body, $attachments);
+
+// 💡 YOU SHOULD DO THAT
+// 1 upload for 3 messages
+$attachment = ['basename' => 'decennial-data.csv', 'file' => '/path/to/huge-data.csv'];
+$aid = $zimbra->uploadAttachment($attachment); // Attachment ID is an internal Zimbra ID
+$attachments = [$aid];
+$zimbra->send($addresses_1, $subject, $body, $attachments);
+$zimbra->send($addresses_2, $subject, $body, $attachments);
+$zimbra->send($addresses_3, $subject, $body, $attachments);
 ```
