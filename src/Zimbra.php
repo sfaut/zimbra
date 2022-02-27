@@ -432,6 +432,33 @@ class Zimbra
     }
 
     /**
+     * Retrieves attachment from message $id attachment and part $part
+     * Zimbra REST API used
+     * SOAP GetMsgRequest not used because inconsistent
+     * (sometimes gives content, sometimes URL)
+     * and message-part wrong (request 2, attachment in 2.1)
+     */
+    public function getAttachment(int $id, string $part)
+    {
+        $url = "{$this->host}/service/content/get?id={$id}&part={$part}";
+
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'GET',
+                'header' => ["Cookie: ZM_AUTH_TOKEN={$this->session}"],
+            ],
+        ]);
+
+        $buffer = @file_get_contents($url, false, $context);
+
+        if ($buffer === false) {
+            throw new \Exception("Unable to download attachment message ID {$id} part {$part}");
+        }
+
+        return $buffer;
+    }
+
+    /**
      * Upload a file
      * Returns an attachment ID (UUID form) on success, or throws an exception on failure
      */
