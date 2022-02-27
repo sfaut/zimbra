@@ -165,3 +165,33 @@ $zimbra->send($addresses_1, $subject, $body, $attachments);
 $zimbra->send($addresses_2, $subject, $body, $attachments);
 $zimbra->send($addresses_3, $subject, $body, $attachments);
 ```
+
+## Attachments
+
+Message attachments are specified in array `$message->attachments`.
+
+Each attachment is an anonymous object having the following structure :
+
+```php
+{
+    "part": <MIME part of the attachment in the message, eg. "2" or "2.1.1">,
+    "disposition": <Attachment method to the message : "attachment" or "inline">,
+    "type": <MIME type of the attachment file, eg. "text/plain", "text/csv">,
+    "size": <Attachement file size in bytes>,
+    "basename": <Attachement file name with extension, eg. "my-data.csv">
+}
+```
+
+## Attachments retrieving
+
+Attachments are retrieved with `Zimbra::download()` and parameters `$message->id`
+and part `$message->attachments[*]->part` to download.
+
+You want to retrieve the unique file of the mail *Annual result 2022* and save it under its original name :
+
+```php
+$message = $zimbra->getSearch(['subject' => 'Annual result 2022'])[0];
+$attachment = $message->attachments[0];
+$buffer = $zimbra->getAttachment($message->id, $attachment->part);
+file_put_contents("/path/to/{$attachment->basename}", $buffer);
+```
