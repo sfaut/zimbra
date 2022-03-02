@@ -62,21 +62,6 @@ class Zimbra
         ]);
     }
 
-    protected function createAddresses(object $message)
-    {
-        return array_reduce(
-            $message->e,
-            function ($result, $address) {
-                $result->{$this->types[$address->t]}[] = $address->a;
-                return $result;
-            },
-            (object)array_combine(
-                array_values($this->types),
-                array_fill(0, count($this->types), []),
-            ),
-        );
-    }
-
     // Convert a Zimbra message object to a pretty object
     // https://files.zimbra.com/docs/soap_api/8.8.15/api-reference/zimbraMail/Search.html#tbl-SearchResponse-m
     protected function createMessage(object $message)
@@ -95,6 +80,21 @@ class Zimbra
             'body' => $this->searchBody($message->mp ?? []),
             'attachments' => $this->searchAttachments($message->mp ?? []),
         ];
+    }
+
+    protected function createAddresses(object $message)
+    {
+        return array_reduce(
+            $message->e,
+            function ($result, $address) {
+                $result->{$this->types[$address->t]}[] = $address->a;
+                return $result;
+            },
+            (object)array_combine(
+                array_values($this->types),
+                array_fill(0, count($this->types), []),
+            ),
+        );
     }
 
     // Converts a Zimbra part/attachment object to a pretty object
