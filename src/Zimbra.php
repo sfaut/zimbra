@@ -392,14 +392,6 @@ class Zimbra
         return $messages;
     }
 
-    public function getDataSources()
-    {
-        $request = ['GetDataSourcesRequest' => ['_jsns' => 'urn:zimbraMail']];
-        $this->prepareAuthenticatedRequest($request);
-        $response = @file_get_contents($this->soap, false, $this->context);
-        return $response;
-    }
-
     // Get folder's folders
     public function getFolder(string $name)
     {
