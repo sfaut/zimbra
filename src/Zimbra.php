@@ -336,14 +336,22 @@ class Zimbra
         return $result;
     }
 
-    // Get folder's folders
-    public function getFolder(string $name)
+    /**
+     * Get folder's folders
+     * https://files.zimbra.com/docs/soap_api/8.8.15/api-reference/zimbraMail/GetFolder.html
+     * TODO : beautify result
+     */
+    public function explore(string $name, int $depth = null)
     {
         $this->prepareAuthenticatedRequest([
             'GetFolderRequest' => [
                 '_jsns' => 'urn:zimbraMail',
-                'depth' => 1,
-                'folder' => ['path' => $name],
+                'depth' => $depth,
+                'folder' => [
+                    // 'uuid' => $uuid, // Base folder search
+                    // 'l' => $id,      // Base folder search
+                    'path' => $name,
+                ],
             ],
         ]);
 
@@ -353,7 +361,11 @@ class Zimbra
             throw new \Exception('Unable to get folder contents');
         }
 
-        return json_decode($response);
+        $response = json_decode($response);
+
+        $folders = $response->Body->GetFolderResponse;
+
+        return $folders;
     }
 
     // Get message's attachments
