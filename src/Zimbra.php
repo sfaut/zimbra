@@ -304,7 +304,7 @@ class Zimbra
         $query = $this->createQueryString($parameters);
 
         $this->prepareAuthenticatedRequest([
-            // SearchDirectory request => Zimbra 9
+            // SearchDirectory request => Available starting Zimbra 9
             // Zimbra 8 => https://files.zimbra.com/docs/soap_api/8.8.8/api-reference/index.html
             'SearchRequest' => [
                 '_jsns' => 'urn:zimbraMail',
@@ -334,78 +334,6 @@ class Zimbra
         file_put_contents(__DIR__ . '/dump-parsed.json', json_encode($result, JSON_PRETTY_PRINT));
 
         return $result;
-    }
-
-    // Do a search to get messages
-    public function getMessages(string $search)
-    {
-        $this->prepareAuthenticatedRequest([
-            'SearchRequest' => [
-                '_jsns' => 'urn:zimbraMail',
-                'types' => 'message',
-                'sortBy' => 'dateDesc',
-                'limit' => 1_000,
-                'query' => ['_content' => $search],
-            ],
-        ]);
-
-        $response = @file_get_contents($this->soap, false, $this->context);
-
-        if ($response === false) {
-            throw new \Exception('Unable to get folder contents');
-        }
-
-        $response =  json_decode($response);
-
-        $response = $response->Body->SearchResponse->m ?? null;
-
-        if ($response === null) {
-            throw new \Exception('List of messages is null');
-        }
-
-        // Adresses types
-        // (f)rom, (t)o, (c)c, (b)cc, (r)eply-to, (s)ender, read-receipt (n)otification, (rf) resent-from
-        // TODO : use that
-        $types = [
-            'f' => 'From',
-            't' => 'To',
-            'c' => 'Cc',
-            'b' => 'Bcc',
-            'r' => 'Reply-to',
-            's' => 'Sender, read-receipt',
-            'n' => 'Notification',
-            'rf' => 'Resent-from',
-        ];
-
-        // Messages flags
-        // (u)nread, (f)lagged, has (a)ttachment, (r)eplied, (s)ent by me, for(w)arded,
-        // calendar in(v)ite, (d)raft, IMAP-\Deleted (x), (n)otification sent, urgent (!), low-priority (?), priority (+)
-        // TODO : use that
-        $flags = [
-            'u' => 'Unread',
-            'f' => 'Flagged',
-            'a' => 'Has attachment',
-            'r' => 'Replied',
-            's' => 'Sent by me',
-            'w' => 'Forwarded',
-            'v' => 'Calendar invite',
-            'd' => 'Draft',
-            'x' => 'IMAP-\Deleted',
-            'n' => 'Notification sent',
-            '!' => 'Urgent',
-            '?' => 'Low-priority',
-            '+' => 'Priority',
-        ];
-
-        $messages = [];
-
-        foreach ($response as $message) {
-            $messages[] = $this->createMessage($message);
-        }
-
-        $messages = array_reverse($messages);
-
-        return $messages;
     }
 
     // Get folder's folders
