@@ -356,12 +356,6 @@ class Zimbra
         return json_decode($response);
     }
 
-    // Get message
-    public function getMessage(int $id)
-    {
-        return (object)[];
-    }
-
     // Get message's attachments
     public function getAttachments(int $id, string $filter)
     {
