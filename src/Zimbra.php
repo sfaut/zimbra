@@ -363,7 +363,11 @@ class Zimbra
 
         $response = json_decode($response);
 
-        $folders = $response->Body->GetFolderResponse;
+        $folders = $response->Body->GetFolderResponse ?? false;
+
+        if ($folders === false) {
+            throw new \Exception('No folder response provided');
+        }
 
         return $folders;
     }
