@@ -259,8 +259,24 @@ class Zimbra
     }
 
     /**
-     * https://wiki.zimbra.com/wiki/Zimbra_Web_Client_Search_Tips
-     * Parameters :
+     * Do a SearchRequest
+     * https://files.zimbra.com/docs/soap_api/8.8.15/api-reference/zimbraMail/Search.html
+     *
+     * $parameters
+     *      Array of key/value pairs or single values, to perform a Zimbra search
+     *      ['in' => '/Inbox/Important', 'Really important?']
+     *      => Search a message containing "Really important?" in folder /Inbox/Important
+     *      Misc parameters are possible : https://wiki.zimbra.com/wiki/Zimbra_Web_Client_Search_Tips
+     *
+     * $limit
+     *      Zimbra pager, number of items retrieved
+     *      Default and max are 1,000
+     *
+     * $offset
+     *      Zimbra pager, starting retrieving index
+     *      Default is 0
+     *
+     * Some parameters :
      * in => folder path
      * under => specifies searching a folder and its sub-folders
      * has => specifies an attribute that the message must have,
@@ -283,7 +299,7 @@ class Zimbra
      * before => ...
      * is => read|unread|...
      */
-    public function getSearch(array $parameters, int $limit = 1_000, int $offset = 0): array
+    public function search(array $parameters, int $limit = 1_000, int $offset = 0): array
     {
         $query = $this->createQueryString($parameters);
 
