@@ -4,12 +4,27 @@ namespace sfaut;
 
 class Zimbra
 {
-    protected string $host;     // Scheme and host
-    protected string $email;    // User account
-    protected string $soap;     // SOAP base URL
-    protected string $upload;   // Upload base URL
+    // Zimbra scheme and host
+    // eg. "https://zimbra.example.net" or "https://www.example.net/zimbra"
+    protected string $host;
+
+    // User account
+    // Generally an e-mail address
+    // eg. "user@examplet.net" or "user"
+    protected string $user;
+
+    // Zimbra services endpoints
+    protected string $soap;     // SOAP endpoint
+    protected string $upload;   // Attachment upload URL
+    protected string $content;  // Attachment download URL
+
     protected ?string $session; // Session token
     protected $context;         // Base stream context
+
+    protected $unauthenticatedSoapContext;      // POST
+    protected $authenticatedSoapContext;        // POST
+    protected $authenticatedUploadContext;      // POST
+    protected $authenticatedDownloadContext;    // GET
 
     // Messages' flags
     protected $flags = [
@@ -42,15 +57,16 @@ class Zimbra
 
     /**
      * $host : ex. "https://webmail.free.fr", no trailing slash needed
-     * $email : ex. "my-email", or "my-email@free.fr"
+     * $user : ex. "my-email", or "my-email@free.fr"
      * $password : your password
      */
-    protected function __construct(string $host, string $email, string $password)
+    protected function __construct(string $host, string $user, string $password)
     {
         $this->host = $host;
-        $this->email = $email;
+        $this->user = $user;
         $this->soap = "{$this->host}/service/soap/";
         $this->upload = "{$this->host}/service/upload?fmt=raw";
+        $this->content = "{$this->host}/service/content/get?id=%s&part=%s";
 
         $this->context = stream_context_create([
             'http' => [
@@ -60,6 +76,28 @@ class Zimbra
                 'ignore_errors' => true,
             ],
         ]);
+    }
+
+    protected function fetchAttachment(int $id, string $part)
+    {
+        $url = sprintf($this->content, $id, $part);
+
+        $context = [
+            'http' => [
+                'method' => 'GET',
+                'header' => ["Cookie: ZM_AUTH_TOKEN={$this->session}"],
+            ],
+        ];
+
+        $context = stream_context_create($context);
+
+        $buffer = @file_get_contents($url, false, $context);
+
+        if ($buffer === false) {
+            throw new \Exception("Unable to download attachment message ID {$id} part {$part}");
+        }
+
+        return $buffer;
     }
 
     // Convert a Zimbra message object to a pretty object
@@ -225,14 +263,14 @@ class Zimbra
         return $attachments;
     }
 
-    public static function authenticate(string $host, string $email, string $password)
+    public static function authenticate(string $host, string $user, string $password)
     {
-        $z = new self($host, $email, $password);
+        $z = new self($host, $user, $password);
 
         $z->prepareUnauthenticatedRequest([
             'AuthRequest' => [
                 '_jsns' => 'urn:zimbraAccount',
-                'account' => ['by' => 'name', '_content' => $z->email],
+                'account' => ['by' => 'name', '_content' => $z->user],
                 'password' => ['_content' => $password],
             ],
         ]);
@@ -372,150 +410,119 @@ class Zimbra
         return $folders;
     }
 
-    // Get message's attachments
-    public function getAttachments(int $id, string $filter)
-    {
-        return [];
-    }
-
     /**
-     * Retrieves attachment from message $id attachment and part $part
-     * Zimbra REST API used
-     * SOAP GetMsgRequest not used because inconsistent
-     * (sometimes gives content, sometimes URL)
-     * and message-part wrong (request 2, attachment in 2.1)
+     * Retrieves attachments from $message according to $filter closure
+     * Returns an array of attachments objects to which a stream property has been added
      */
-    public function getAttachment(int $id, string $part)
+    public function download(object $message, callable $filter = null): array
     {
-        $url = "{$this->host}/service/content/get?id={$id}&part={$part}";
-
-        $context = stream_context_create([
-            'http' => [
-                'method' => 'GET',
-                'header' => ["Cookie: ZM_AUTH_TOKEN={$this->session}"],
-            ],
-        ]);
-
-        $buffer = @file_get_contents($url, false, $context);
-
-        if ($buffer === false) {
-            throw new \Exception("Unable to download attachment message ID {$id} part {$part}");
+        if ($filter === null) {
+            $filter = fn ($attachment) => true;
         }
 
-        return $buffer;
-    }
+        $attachments = [];
 
-    /**
-     * Upload a file
-     * Returns an attachment ID (UUID form) on success, or throws an exception on failure
-     */
-    public function uploadAttachment($attachment)
-    {
-        $attachment = (object)$attachment; // Eventual array to object casting, for flex
-        if (isset($attachment->basename, $attachment->file)) { // File upload
-            $aid = $this->uploadAttachmentFile($attachment->basename, $attachment->file);
-        } elseif (isset($attachment->basename, $attachment->buffer)) { // Buffer upload
-            $aid = $this->uploadAttachmentBuffer($attachment->basename, $attachment->buffer);
-        } elseif (isset($attachment->basename, $attachment->stream)) { // Stream upload
-            $aid = $this->uploadAttachmentStream($attachment->basename, $attachment->stream);
-        } else {
-            throw new \Exception(
-                'Incorrect upload definition, '
-                . 'basename must always be provided, '
-                . 'and file, buffer or stream'
-            );
+        foreach ($message->attachments as $attachment) {
+            if ($filter($attachment)) {
+                $attachment->stream = tmpfile(); // Open as "w+"
+                fwrite($attachment->stream, $this->fetchAttachment($message->id, $attachment->part));
+                rewind($attachment->stream); // Mandatory, otherwise file pointer at end
+                $attachments[] = $attachment;
+            }
         }
-        return $aid;
+
+        return $attachments;
     }
 
     /**
-     * Upload multiple files in a row (but with multiple API calls)
-     * Returns an array of attachments ID (UUID form)
+     * Upload files in a row (but with multiple API calls) to attach to messages
+     * Param is an array of object|array attachments { basename, buffer|stream|file }
+     * On success returns an array of objects attachments with attachment-id (2 × UUID) property added
+     * On failure throws an exception
      */
-    public function uploadAttachments(array $attachments)
+    public function upload(array $attachments): array
     {
-        $aids = []; // Attachments ID
+        $aids = []; // Result array
+
         foreach ($attachments as $attachment) {
-            $aids[] = $this->uploadAttachment($attachment);
-        }
-        return $aids;
-    }
 
-    /**
-     * Upload a $stream name $basename to Zimbra upload servlet
-     * Stream is read from begining, after reading the pointer is set to end
-     * Returns attachment ID (UUID form) on success, or throws an exception on failure
-     */
-    public function uploadAttachmentStream(string $basename, $stream)
-    {
-        rewind($stream);
-        $buffer = stream_get_contents($stream);
-        $aid = $this->uploadAttachmentBuffer($basename, $buffer);
-        return $aid;
-    }
+            $attachment = (object)$attachment; // Eventual array to object casting, for flex
 
-    /**
-     * Upload a $file named $basename to Zimbra upload servlet
-     * Returns attachment ID (UUID form) on success, or throws an exception on failure
-     */
-    public function uploadAttachmentFile(string $basename, string $file)
-    {
-        $buffer = @file_get_contents($file);
+            if (isset($attachment->basename, $attachment->file)) {
+                // File upload
+                $buffer = @file_get_contents($attachment->file);
+                if ($buffer === false) {
+                    throw new \Exception("Unable to retrieve file {$attachment->file} contents");
+                }
+            } elseif (isset($attachment->basename, $attachment->buffer)) {
+                // Buffer upload
+                $buffer = $attachment->buffer;
+            } elseif (isset($attachment->basename, $attachment->stream)) {
+                // Stream upload
+                $type = @get_resource_type($attachment->stream);
+                if (!in_array($type, ['file', 'stream'])) {
+                    throw new \Exception(
+                        "Upload for {$attachment->basename} failed "
+                        . 'because stream is not a valid resource'
+                    );
+                }
+                rewind($attachment->stream);
+                $buffer = stream_get_contents($attachment->stream);
+            } else {
+                throw new \Exception(
+                    'Incorrect upload definition, '
+                    . 'basename must always be provided, '
+                    . 'and file, buffer or stream'
+                );
+            }
 
-        if ($buffer === false) {
-            throw new \Exception("Unable to read file {$file} to attach");
-        }
+            // Good encoding for HTTP header value ?
+            $basename_encoded = rawurlencode($attachment->basename);
 
-        $aid = $this->uploadAttachmentBuffer($basename, $buffer);
-
-        return $aid;
-    }
-
-    /**
-     * Upload a $buffer named $basename to Zimbra upload servlet
-     * Returns attachment ID (UUID form) on success, or throws an exception on failure
-     */
-    public function uploadAttachmentBuffer(string $basename, string $buffer)
-    {
-        $basename_encoded = rawurlencode($basename); // Good encoding for HTTP header value ?
-
-        $context = stream_context_create([
-            'http' => [
-                'method' => 'POST',
-                'header' => [
-                    'Content-Type: application/octet-stream',
-                    "Content-Disposition: attachment; filename=\"{$basename_encoded}\"",
-                    "Cookie: ZM_AUTH_TOKEN={$this->session}",
-                    'Content-Transfer-Encoding: binary',
+            $context = [
+                'http' => [
+                    'method' => 'POST',
+                    'header' => [
+                        'Content-Type: application/octet-stream',
+                        "Content-Disposition: attachment; filename=\"{$basename_encoded}\"",
+                        "Cookie: ZM_AUTH_TOKEN={$this->session}",
+                        'Content-Transfer-Encoding: binary',
+                    ],
+                    'content' => $buffer,
                 ],
-                'content' => $buffer,
-            ],
-        ]);
+            ];
 
-        // raw response : code,client_id,aid
-        // raw,extended response gives unvalid CSV, ex. :
-        // 200,'null',[{"aid":"63f347f0-df57-...","ct":"text/plain","filename":"name.txt","s":73}]
-        // => JSON not delimited and not escaped!
-        $response = @file_get_contents($this->upload, false, $context);
+            $context = stream_context_create($context);
 
-        if ($response === false) {
-            throw new \Exception("Upload of file {$basename} failed");
+            // raw response : code,client_id,aid
+            // raw,extended response gives unvalid CSV, ex. :
+            // 200,'null',[{"aid":"63f347f0-df57-...","ct":"text/plain","filename":"name.txt","s":73}]
+            // => JSON not delimited and not escaped!
+            $response = @file_get_contents($this->upload, false, $context);
+
+            if ($response === false) {
+                throw new \Exception("Upload of file {$basename} failed");
+            }
+
+            [$code, $request_id, $aid] = str_getcsv($response, ',', "'", '');
+
+            if ($code !== '200') {
+                throw new \Exception("Upload of file {$basename} failed with response code {$code}");
+            }
+
+            $attachment->id = $aid;
+
+            $aids[] = $attachment;
         }
 
-        [$code, $request_id, $aid] = str_getcsv($response, ',', "'", '');
-
-        if ($code !== '200') {
-            throw new \Exception("Upload of file {$basename} failed with response code {$code}");
-        }
-
-        return $aid;
+        return $aids;
     }
 
     /**
      * Convert adresses to Zimbra format for SOAP request
      * Ex. ['to' => ['user@exemple.net']] to [['t' => 't', 'a' => 'user@exemple.net']]
      */
-    protected function prepareAddresses(array $addresses)
+    protected function transformAddresses(array $addresses)
     {
         // sfaut\Zimbra type to Zimbra type
         // Ex. ['to' => 't']
@@ -535,18 +542,23 @@ class Zimbra
     }
 
     /**
-     * Convert uploads array to Zimbra format for SOAP request
+     * Convert attachments array to Zimbra format for SOAP request
+     * Upload files if not already uploaded (if they don't have "id" property)
      * Returns an array of attachments IDs
      */
-    protected function prepareAttachments(array $attachments)
+    protected function transformAttachments(array $attachments): array
     {
         $aids = [];
 
         foreach ($attachments as $attachment) {
-            if (is_string($attachment)) { // Assuming an attachment ID
-                $aids[] = $attachment;
-            } else { // File to upload
-                $aids[] = $this->uploadAttachment($attachment);
+            $attachment = (object)$attachment;
+            if (isset($attachment->id)) {
+                // Attachment already uploaded
+                $aids[] = $attachment->id;
+            } else {
+                // Attachment to upload
+                $attachment = $this->upload([$attachment]);
+                $aids[] = $attachment[0]->id;
             }
         }
 
@@ -589,7 +601,7 @@ class Zimbra
                 'noSave' => 0,
                 'fetchSavedMsg' => 1,
                 'm' => [
-                    'e' => $this->prepareAddresses($addresses),
+                    'e' => $this->transformAddresses($addresses),
                     'su' => $subject,
                     'f' => $flags ?? '',
                     'mp' => [
@@ -602,7 +614,7 @@ class Zimbra
 
         // We must not send an empty aid, elsewhere Zimbra fails
         if (!empty($attachments)) {
-            $aids = $this->prepareAttachments($attachments);
+            $aids = $this->transformAttachments($attachments);
             $aids = implode(',', $aids);
             $request['SendMsgRequest']['m']['attach']['aid'] = $aids;
         }
