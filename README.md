@@ -39,7 +39,9 @@ Here is a search response structure with an array of messages. A message is an a
                 "disposition": <MIME disposition, "inline" or "attachment">
                 "type": <MIME type, ex. "text/csv">
                 "size": <Attachment size, in bytes>
-                "basename": <Attachment file name>
+                "basename": <Attachment basename (with extension), ex. "Report.csv">
+                "filename": <Attachment filename (without extension), ex. "Report">
+                "extension": <Attachment extension without dot, ex. "csv">
             }
             ...
         ]
@@ -229,6 +231,8 @@ Each attachment is an anonymous object having the following structure :
     "type": <MIME type of the attachment file, eg. "text/plain", "text/csv">
     "size": <Attachement file size in bytes>
     "basename": <Attachement file name with extension, eg. "my-data.csv">
+    "filename": <Attachment file name without extension, eg. "my-data">
+    "extension": <Attachment extension without dot, eg. "csv">
     "stream": <Stream from temporary, only after Zimbra::download() call>
 }
 ```
@@ -290,12 +294,10 @@ $messages = $zimbra->search(['in' = $source_folder, 'has' => 'attachment']);
 foreach ($messages as $message) {
     // Download attachments, only what you need
     $attachments = $zimbra->download($message, function ($attachment) {
-        $attachment_basename = strtoupper($attachment->basename);
-        $attachment_extension = pathinfo($attachment_basename, PATHINFO_EXTENSION);
-        if ($attachment_extension !== 'CSV') {
+        if (strtoupper($attachment->extension) !== 'CSV') {
             return false;
         }
-        if ($attachment_basename < $starting_file) {
+        if (strtoupper($attachment->basename) < $starting_file) {
             return false;
         }
         return true;
