@@ -522,7 +522,7 @@ class Zimbra
      * Convert adresses to Zimbra format for SOAP request
      * Ex. ['to' => ['user@exemple.net']] to [['t' => 't', 'a' => 'user@exemple.net']]
      */
-    protected function transformAddresses(array $addresses)
+    protected function prepareAddresses(array $addresses)
     {
         // sfaut\Zimbra type to Zimbra type
         // Ex. ['to' => 't']
@@ -546,7 +546,7 @@ class Zimbra
      * Upload files if not already uploaded (if they don't have "id" property)
      * Returns an array of attachments IDs
      */
-    protected function transformAttachments(array $attachments): array
+    protected function prepareAttachments(array $attachments): array
     {
         $aids = [];
 
@@ -601,7 +601,7 @@ class Zimbra
                 'noSave' => 0,
                 'fetchSavedMsg' => 1,
                 'm' => [
-                    'e' => $this->transformAddresses($addresses),
+                    'e' => $this->prepareAddresses($addresses),
                     'su' => $subject,
                     'f' => $flags ?? '',
                     'mp' => [
@@ -614,7 +614,7 @@ class Zimbra
 
         // We must not send an empty aid, elsewhere Zimbra fails
         if (!empty($attachments)) {
-            $aids = $this->transformAttachments($attachments);
+            $aids = $this->prepareAttachments($attachments);
             $aids = implode(',', $aids);
             $request['SendMsgRequest']['m']['attach']['aid'] = $aids;
         }
