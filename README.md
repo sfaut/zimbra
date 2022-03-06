@@ -206,7 +206,7 @@ $attachments = [
 ];
 
 // 🥂 That's the trick
-// An ID attachment is retrieved and reused as necessary
+// An attachment ID is retrieved and reused as necessary
 $attachments = $zimbra->upload($attachments);
 
 $zimbra->send($addresses_1, $subject, $body, $attachments);
@@ -257,3 +257,55 @@ stream_copy_to_stream($attachment->stream, $destination_stream);
 $buffer = stream_get_contents($attachment->stream);
 file_put_contents($destination_file, $buffer);
 ```
+
+## Real-life use case
+
+### Mass download attachments
+
+- You need to download tons of messages CSV attachments, deadline : yesterday
+- Messages are stored on mailbox in folder `Inbox/Reports`
+- Each message has 0 to n attachments
+- Attachments can be of any types like `.csv`, `.xlsx`, `.pdf`, etc., and you need to retrieve only `.csv`
+- CSV files are named in the following format : `Report Y-m-d.csv`, ex. `Report 2022-03-06.csv`
+- Filename, and its extension, can be in lower or upper case, or mix, you need to manage that
+- You must download all CSV attachments starting `2020-01-01`, ex. `Report 2019-12-31` is not downloaded whereas `Report 2020-01-01` is downloaded
+- Each message subject is unique, but each attachment name is not, so attachments downloaded must have a name in format `Message subject -- Attachment basename`
+- Target directory is the local subdirectory `/mailbox/reports`
+
+`sfaut\Zimbra` allows you to do that easily :)
+
+```php
+// Starting attachment
+$starting_file = 'REPORT 2020-01-01.CSV';
+
+// Mailbox source folder
+$source_folder = '/Inbox/Reports';
+
+// Locale target subdirectory, where all attachments will be downloaded
+$target_directory = __DIR__ . '/mailbox/reports';
+
+// Search messages in source folder that have at least one attachment
+$messages = $zimbra->search(['in' = $source_folder, 'has' => 'attachment']);
+
+foreach ($messages as $message) {
+    // Download attachments, only what you need
+    $attachments = $zimbra->download($message, function ($attachment) {
+        $attachment_basename = strtoupper($attachment->basename);
+        $attachment_extension = pathinfo($attachment_basename, PATHINFO_EXTENSION);
+        if ($attachment_extension !== 'CSV') {
+            return false;
+        }
+        if ($attachment_basename <= $starting_file) {
+            return false;
+        }
+        return true;
+    });
+    foreach ($attachments as $attachment) {
+        $target_file = "{$target_directory}/{$message->subject} -- {$attachment->basename}";
+        $target_stream = fopen($target_file, 'w');
+        stream_copy_to_stream($attachment->stream, $target_stream);
+    }
+}
+```
+
+That's all Folks! 🐰
