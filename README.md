@@ -13,7 +13,7 @@ https://files.zimbra.com/docs/soap_api/8.8.15/api-reference/index.html
 
 ## Object structure
 
-Search response structure:
+Here is a search response structure with an array of messages. A message in a anonymous object.
 
 ```
 [
@@ -71,7 +71,7 @@ $zimbra = Zimbra::authenticate($host, $user, $password);
 ## Error management
 
 An exception is raised when authentication or an other `sfaut\Zimbra` statement failed.
-So, you should encapsulate statements with `try/catch/finally` blocks.
+So, you should encapsulate statements within `try / catch / finally` blocks.
 
 ```php
 try {
