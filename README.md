@@ -13,7 +13,7 @@ https://files.zimbra.com/docs/soap_api/8.8.15/api-reference/index.html
 
 ## Object structure
 
-Here is a search response structure with an array of messages. A message in a anonymous object.
+Here is a search response structure with an array of messages. A message is an anonymous object.
 
 ```
 [
