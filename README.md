@@ -289,8 +289,9 @@ $source_folder = '/Inbox/Reports';
 // Locale target subdirectory, where all CSV attachments will be downloaded
 $target_directory = __DIR__ . '/mailbox/reports';
 
-// Search messages in source folder that have at least one attachment
-$messages = $zimbra->search(['in' = $source_folder, 'has' => 'attachment']);
+// Search messages in source folder that have at least one CSV attachment begining with "Report"
+// You reduce unuseful messages retrieving
+$messages = $zimbra->search(['in' = $source_folder, 'filename' => 'Report*', 'type' => 'text/csv']);
 
 foreach ($messages as $message) {
     // Download attachments, only what you need
