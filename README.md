@@ -268,20 +268,20 @@ file_put_contents($destination_file, $buffer);
 - Attachments can be of any types like `.csv`, `.xlsx`, `.pdf`, etc., and you need to retrieve only `.csv`
 - CSV files are named in the following format : `Report Y-m-d.csv`, ex. `Report 2022-03-06.csv`
 - Filename, and its extension, can be in lower or upper case, or mix, you need to manage that
-- You must download all CSV attachments starting `2020-01-01`, ex. `Report 2019-12-31` is not downloaded whereas `Report 2020-01-01` is downloaded
+- You must download all CSV attachments starting `2020-01-01`, ex. `Report 2019-12-31.csv` is not downloaded whereas `Report 2020-01-01.csv` is downloaded
 - Each message subject is unique, but each attachment name is not, so attachments downloaded must have a name in format `Message subject -- Attachment basename`
 - Target directory is the local subdirectory `/mailbox/reports`
 
 `sfaut\Zimbra` allows you to do that easily :)
 
 ```php
-// Starting attachment
+// Starting attachment, you choose an all upper case reference
 $starting_file = 'REPORT 2020-01-01.CSV';
 
 // Mailbox source folder
 $source_folder = '/Inbox/Reports';
 
-// Locale target subdirectory, where all attachments will be downloaded
+// Locale target subdirectory, where all CSV attachments will be downloaded
 $target_directory = __DIR__ . '/mailbox/reports';
 
 // Search messages in source folder that have at least one attachment
@@ -295,11 +295,12 @@ foreach ($messages as $message) {
         if ($attachment_extension !== 'CSV') {
             return false;
         }
-        if ($attachment_basename <= $starting_file) {
+        if ($attachment_basename < $starting_file) {
             return false;
         }
         return true;
     });
+    // Save CSV attachments in safe place
     foreach ($attachments as $attachment) {
         $target_file = "{$target_directory}/{$message->subject} -- {$attachment->basename}";
         $target_stream = fopen($target_file, 'w');
