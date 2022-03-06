@@ -145,6 +145,8 @@ class Zimbra
             'type' => $part->ct,
             'size' => $part->s,
             'basename' => $part->filename,
+            'filename' => pathinfo($part->filename, PATHINFO_FILENAME),
+            'extension' => pathinfo($part->filename, PATHINFO_EXTENSION),
         ];
     }
 
