@@ -273,10 +273,11 @@ file_put_contents($destination_file, $buffer);
 - CSV files are named in the following format : `Report Y-m-d.csv`, ex. `Report 2022-03-06.csv`
 - Filename, and its extension, can be in lower or upper case, or mix, you need to manage that
 - You must download all CSV attachments starting `2020-01-01`, ex. `Report 2019-12-31.csv` is not downloaded whereas `Report 2020-01-01.csv` is downloaded
-- Each message subject is unique, but each attachment name is not, so attachments downloaded must have a name in format `Message subject -- Attachment basename`
+- There are a lot of files, so you must save them as Gzip files
+- Each message subject is unique, but each attachment name is not, so attachments downloaded must have a name in format `Message subject -- Attachment basename.gz`, ex. `Report 2020-01-01.csv.gz`
 - Target directory is the local subdirectory `/mailbox/reports`
 
-`sfaut\Zimbra` allows you to do that easily :)
+PHP and `sfaut\Zimbra` allows you to do that easily :)
 
 ```php
 // Starting attachment, you choose an all upper case reference
@@ -304,8 +305,8 @@ foreach ($messages as $message) {
     });
     // Save CSV attachments in safe place
     foreach ($attachments as $attachment) {
-        $target_file = "{$target_directory}/{$message->subject} -- {$attachment->basename}";
-        $target_stream = fopen($target_file, 'w');
+        $target_file = "{$target_directory}/{$message->subject} -- {$attachment->basename}.gz";
+        $target_stream = gzopen($target_file, 'w');
         stream_copy_to_stream($attachment->stream, $target_stream);
     }
 }
