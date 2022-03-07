@@ -6,7 +6,7 @@ Based on [Zimbra 8 SOAP API](https://files.zimbra.com/docs/soap_api/8.8.15/api-r
 
 ## Introduction
 
-- E-mail messages are versatile. `sfaut\Zimbra` is a relatively low-level class whose aim is to provide a simple anonymous object representing a message and its main components. `sfaut\Zimbra` also provides some helper methods to send and get messages, upload and download attachments, explore directories structure, and make a search.
+- E-mail messages are versatile. `sfaut\Zimbra` is a relatively **low-level** class whose aim is to provide a simple anonymous object representing a message and its main components. `sfaut\Zimbra` also provides some helper methods to send and get messages, upload and download attachments, explore directories structure, and make a search.
 - KISS – Fire & Forget
 
 ## Object structure
