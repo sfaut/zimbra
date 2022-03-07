@@ -254,7 +254,7 @@ $message = $zimbra->search(['subject' => 'Annual result 2022'])[0]; // Get 1 mes
 $attachment = $zimbra->download($message)[0]; // Get 1 attachment
 
 // Where you want to save your file
-$destination_file = "/path/to/{$attachment->basename}";
+$destination_file = '/path/to/' . $attachment->basename;
 
 // 1st method, with stream
 // Memory efficient
@@ -270,7 +270,7 @@ file_put_contents($destination_file, $buffer);
 You can filter attachments to retrieve with a closure accepting an attachment object as parameter (returning `true` by default).
 
 ```php
-$message = $zimbra->search(['subject' => 'Holidays summer 2022 photos'])[0];
+$message = $zimbra->search(['subject' => 'Summer 2022 holidays photos'])[0];
 
 // Your filter closure
 // You need to keep only images attachments
@@ -318,7 +318,7 @@ $target_directory = __DIR__ . '/mailbox/reports';
 
 // Search messages in source folder that have at least one CSV attachment begining with "Report"
 // You reduce unuseful messages retrieving
-$messages = $zimbra->search(['in' = $source_folder, 'filename' => 'Report*', 'type' => 'text/csv']);
+$messages = $zimbra->search(['in' => $source_folder, 'filename' => 'Report*', 'type' => 'text/csv']);
 
 foreach ($messages as $message) {
     // Download attachments, only what you need
