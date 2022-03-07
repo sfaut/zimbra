@@ -270,19 +270,18 @@ file_put_contents($destination_file, $buffer);
 You can filter attachments to retrieve with a closure accepting an attachment object as parameter (returning `true` by default).
 
 ```php
-$messages = $zimbra->search(['subject' => 'Holidays photos']);
+$message = $zimbra->search(['subject' => 'Holidays summer 2022 photos'])[0];
 
 // Your filter closure
 // You need to keep only images attachments
 $filter = fn ($attachment) => strpos($attachment->type, 'image/') === 0;
 
-foreach ($messages as $message) {
-    $attachments = $zimbra->download($message, $filter);
-    foreach ($attachments as $attachment) {
-        // Save the downloaded attachments / photos to a safe place
-        $stream_destination = fopen('/home/me/holidays/' . $attachment->basename, 'w');
-        stream_copy_to_stream($attachment->stream, $stream_destination);
-    }
+$attachments = $zimbra->download($message, $filter);
+
+foreach ($attachments as $attachment) {
+    // Save the downloaded attachments / photos to a safe place
+    $stream_destination = fopen('/home/me/holidays/' . $attachment->basename, 'w');
+    stream_copy_to_stream($attachment->stream, $stream_destination);
 }
 ```
 
