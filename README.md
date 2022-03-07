@@ -1,10 +1,8 @@
 # sfaut\Zimbra
 
-Read and send simply Zimbra messages. Attachments are managed.
+Read and send simply [Zimbra](https://www.zimbra.com/) messages. Attachments are managed.
 
-Based on Zimbra 8 SOAP API.
-
-https://files.zimbra.com/docs/soap_api/8.8.15/api-reference/index.html
+Based on [Zimbra 8 SOAP API](https://files.zimbra.com/docs/soap_api/8.8.15/api-reference/index.html).
 
 ## Introduction
 
@@ -53,6 +51,7 @@ Here is a search response structure with an array of messages. A message is an a
 ## Connection
 
 Static method `Zimbra::authenticate()` creates a new `sfaut\Zimbra` instance and immediately connects to Zimbra server.
+An exception is raised on failure.
 
 ```php
 <?php
@@ -89,7 +88,9 @@ try {
 
 ## Get mailbox messages
 
-All messages accesses are, in reality, search result.
+All messages listing are, in reality, search result.
+Search is performed with `Zimbra::search()` method and Zimbra client search capacities.
+[Zimbra search tips have been archived on this gist](https://gist.github.com/sfaut/deb2c47161e9bebea23386adf55ec609).
 
 ```php
 $folder = '/Inbox';
@@ -107,12 +108,15 @@ foreach ($messages as $i => $message) {
 
 ```php
 $addresses = ['to' => 'user@exemple.net'];
+
 $subject = 'Hello!';
+
 $body = <<<BUFFER
     Dear Sir,\n
     URGENT BUSINESS PROPOSAL\n
     ...
     BUFFER;
+
 $zimbra->send($addresses, $subject, $body);
 ```
 
@@ -138,16 +142,16 @@ $zimbra->send($addresses, $subject, $body);
 4th `Zimbra::send()` parameter is an array of **attachments**.
 
 Basically, an **attachment** is an anonymous object (or an array) containing 2 properties :
-- `basename` : the name + extension of the attached file
-- A type `buffer`, `file` or `stream` and its related value
+- `basename` : the name and extension of the attached file
+- `type` : containing the attachment natur
 
-Description details :
+Possible `type` values are :
 - `file` : the value represents the file full path to attach
 - `buffer` : the value represents the raw data to attach
 - `stream` : the value is the stream resource to attach
 - Attachment ID : a string given when uploading a file previously
 
-Attach a file to a message :
+Attach a locale file to a message :
 
 ```php
 $attachments = [
@@ -185,7 +189,7 @@ $attachments = [
 $zimbra->send($addresses, $subject, $body, $attachments);
 ```
 
-Eeach attachment is uploaded when sending message.
+Eeach attachment is uploaded while sending message.
 That can be unnecessarily resource-consuming if you send multiple messages with the same attachments.
 To save resources, you can first upload files with `Zimbra::upload()`, then attach them to messages.
 
@@ -226,27 +230,28 @@ Each attachment is an anonymous object having the following structure :
 
 ```php
 {
-    "part": <MIME part of the attachment in the message, eg. "2" or "2.1.1">
-    "disposition": <Attachment method to the message : "attachment" or "inline">
-    "type": <MIME type of the attachment file, eg. "text/plain", "text/csv">
-    "size": <Attachement file size in bytes>
-    "basename": <Attachement file name with extension, eg. "my-data.csv">
-    "filename": <Attachment file name without extension, eg. "my-data">
-    "extension": <Attachment extension without dot, eg. "csv">
-    "stream": <Stream from temporary, only after Zimbra::download() call>
+    part: <MIME part of the attachment in the message, eg. "2" or "2.1.1">
+    disposition: <Attachment method to the message : "attachment" or "inline">
+    type: <MIME type of the attachment file, eg. "text/plain", "text/csv">
+    size: <Attachement file size in bytes>
+    basename: <Attachement file name with extension, eg. "my-data.csv">
+    filename: <Attachment file name without extension, eg. "my-data">
+    extension: <Attachment extension without dot, eg. "csv">
+    stream: <Stream from temporary, only after Zimbra::download() call>
 }
 ```
 
 ## Attachments retrieving
 
-Attachments are retrieved with `Zimbra::download()` and parameters `$message->id`
-and part `$message->attachments[*]->part` to download.
-
-You want to retrieve the unique file of the mail *Annual result 2022* and save it under its original name :
+All attachments of a message are retrieved in an array returned by `Zimbra::download()`.
+Attachments are downloaded in temporary files.
+These temporary files are automatically deleted at script end.
+Each attachment is an anonymous object containing, among other things,
+a `stream` property pointing to the temporary file, and ready to read and write.
 
 ```php
-$message = $zimbra->search(['subject' => 'Annual result 2022'])[0];
-$attachment = $zimbra->download($message)[0];
+$message = $zimbra->search(['subject' => 'Annual result 2022'])[0]; // Get 1 message
+$attachment = $zimbra->download($message)[0]; // Get 1 attachment
 
 // Where you want to save your file
 $destination_file = "/path/to/{$attachment->basename}";
@@ -260,6 +265,25 @@ stream_copy_to_stream($attachment->stream, $destination_stream);
 // Memory inefficient on huge files, but you can process $buffer
 $buffer = stream_get_contents($attachment->stream);
 file_put_contents($destination_file, $buffer);
+```
+
+You can filter attachments to retrieve with a closure accepting an attachment object as parameter (returning `true` by default).
+
+```php
+$messages = $zimbra->search(['subject' => 'Holidays photos']);
+
+// Your filter closure
+// You need to keep only images attachments
+$filter = fn ($attachment) => strpos($attachment->type, 'image/') === 0;
+
+foreach ($messages as $message) {
+    $attachments = $zimbra->download($message, $filter);
+    foreach ($attachments as $attachment) {
+        // Save the downloaded attachments / photos to a safe place
+        $stream_destination = fopen('/home/me/holidays/' . $attachment->basename, 'w');
+        stream_copy_to_stream($attachment->stream, $stream_destination);
+    }
+}
 ```
 
 ## Real-life use case
@@ -280,6 +304,10 @@ file_put_contents($destination_file, $buffer);
 PHP and `sfaut\Zimbra` allows you to do that easily :)
 
 ```php
+<?php
+
+require_once __DIR__ . '/path/to/sfaut/Zimbra.php';
+
 // Starting attachment, you choose an all upper case reference
 $starting_file = 'REPORT 2020-01-01.CSV';
 
