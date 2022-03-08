@@ -16,30 +16,30 @@ Here is a search response structure with an array of messages. A message is an a
 ```
 [
     {
-        "id": <Message ID, useful for internal usage like attachment download>
-        "mid": <Another message ID, useful for querying a specific message>
-        "folder": <Folder ID>
-        "conversation": <Conversation ID>
-        "timestamp": <Message creation, format "Y-m-d H:i:s">
-        "subject": <Message subject>
-        "addresses": {
-            "to": [...]
-            "from": [...]
-            "cc": [...]
+        id: <Message ID, useful for internal usage like attachment download>
+        mid: <Another message ID, useful for querying a specific message>
+        folder: <Folder ID>
+        conversation: <Conversation ID>
+        timestamp: <Message creation, format "Y-m-d H:i:s">
+        subject: <Message subject>
+        addresses: {
+            to: [...]
+            from: [...]
+            cc: [...]
         }
-        "fragment": <Fragment of the message>
-        "flags": <Message flags>
-        "size": <Message size, in bytes>
-        "body": <Message body>
-        "attachments": [
+        fragment: <Fragment of the message>
+        flags: <Message flags>
+        size: <Message size, in bytes>
+        body: <Message body>
+        attachments: [
             {
-                "part": <Attachment's part message>
-                "disposition": <MIME disposition, "inline" or "attachment">
-                "type": <MIME type, ex. "text/csv">
-                "size": <Attachment size, in bytes>
-                "basename": <Attachment basename (with extension), ex. "Report.csv">
-                "filename": <Attachment filename (without extension), ex. "Report">
-                "extension": <Attachment extension without dot, ex. "csv">
+                part: <Attachment's part message>
+                disposition: <MIME disposition, "inline" or "attachment">
+                type: <MIME type, ex. "text/csv">
+                size: <Attachment size, in bytes>
+                basename: <Attachment basename (with extension), ex. "Report.csv">
+                filename: <Attachment filename (without extension), ex. "Report">
+                extension: <Attachment extension without dot, ex. "csv">
             }
             ...
         ]
@@ -290,7 +290,7 @@ foreach ($attachments as $attachment) {
 ### Mass download attachments
 
 - You need to download tons of messages CSV attachments, deadline : yesterday
-- Messages are stored on mailbox in folder `Inbox/Reports`
+- Messages are stored on mailbox in folder `/Inbox/Reports`
 - Each message has 0 to n attachments
 - Attachments can be of any types like `.csv`, `.xlsx`, `.pdf`, etc., and you need to retrieve only `.csv`
 - CSV files are named in the following format : `Report Y-m-d.csv`, ex. `Report 2022-03-06.csv`
@@ -298,7 +298,7 @@ foreach ($attachments as $attachment) {
 - You must download all CSV attachments starting `2020-01-01`, ex. `Report 2019-12-31.csv` is not downloaded whereas `Report 2020-01-01.csv` is downloaded
 - There are a lot of files, so you must save them as Gzip files
 - Each message subject is unique, but each attachment name is not, so attachments downloaded must have a name in format `Message subject -- Attachment basename.gz`, ex. `Report 2020-01-01.csv.gz`
-- Target directory is the local subdirectory `/mailbox/reports`
+- Target directory is the locale subdirectory `/mailbox/reports`
 
 PHP and `sfaut\Zimbra` allows you to do that easily :)
 
