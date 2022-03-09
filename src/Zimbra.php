@@ -4,18 +4,38 @@ namespace sfaut;
 
 class Zimbra
 {
-    // Zimbra scheme and host
-    // eg. "https://zimbra.example.net" or "https://www.example.net/zimbra"
+    /**
+     * Zimbra scheme and host
+     * eg. "https://zimbra.example.net" or "https://www.example.net/zimbra"
+     */
     protected string $host;
 
-    // User account
-    // Generally an e-mail address
-    // eg. "user@examplet.net" or "user"
+    /**
+     * User account, generally an e-mail address
+     * eg. "user@examplet.net" or "user"
+     */
     protected string $user;
 
-    // Zimbra services endpoints
-    protected string $soap;     // SOAP endpoint
-    protected string $upload;   // Attachment upload URL
+    /**
+     * Zimbra SOAP service endpoint
+     * Often "/service/soap"
+     */
+    protected string $soap;
+
+    /**
+     * Zimbra attachment upload service
+     * Often "/service/upload"
+     * Query "?fmt=raw" strips the response HTML ank data only
+     * Query "?fmt=raw,extended" gives additional informations, but JSON/CSV malformed
+     */
+    protected string $upload;
+
+    /**
+     * Zimbra attachment download service
+     * Often "/service/content/get"
+     * Query "?id=%d&part=%s" specifies the part/attachment to download
+     * eg. "?id=34299&part=2.1" for user message ID "34299" message part "2.1"
+     */
     protected string $content;  // Attachment download URL
 
     protected ?string $session; // Session token
@@ -56,9 +76,8 @@ class Zimbra
     ];
 
     /**
-     * $host : ex. "https://webmail.free.fr", no trailing slash needed
-     * $user : ex. "my-email", or "my-email@free.fr"
-     * $password : your password
+     * Instanciate an instance, for internal use only
+     * End user must use Zimbra::authenticate()
      */
     protected function __construct(string $host, string $user, string $password)
     {
@@ -100,13 +119,15 @@ class Zimbra
         return $buffer;
     }
 
-    // Convert a Zimbra message object to a pretty object
-    // https://files.zimbra.com/docs/soap_api/8.8.15/api-reference/zimbraMail/Search.html#tbl-SearchResponse-m
+    /**
+     * Convert a Zimbra message object to a pretty object
+     * https://files.zimbra.com/docs/soap_api/8.8.15/api-reference/zimbraMail/Search.html#tbl-SearchResponse-m
+     */
     protected function createMessage(object $message)
     {
         return (object)[
-            'id' => $message->id,
-            'mid' => substr($message->mid, 1, -1), // Header message ID without <>, useful for query => "msgid:..."
+            'id' => $message->id, // User message ID
+            'mid' => substr($message->mid, 1, -1), // Server message ID, without trailing <>, useful for search => "msgid:..."
             'folder' => $message->l, // Folder ID
             'conversation' => $message->cid, // Conversation ID
             'timestamp' => date('Y-m-d H:i:s', $message->d / 1_000), // ms to s
@@ -120,6 +141,10 @@ class Zimbra
         ];
     }
 
+    /**
+     * Search message addresses and group them by type
+     * eg. : { to: [...], cc: [...], ... }
+     */
     protected function createAddresses(object $message)
     {
         return array_reduce(
@@ -135,8 +160,10 @@ class Zimbra
         );
     }
 
-    // Converts a Zimbra part/attachment object to a pretty object
-    // https://files.zimbra.com/docs/soap_api/8.8.15/api-reference/zimbraMail/Search.html#tbl-SearchResponse-mp
+    /**
+     * Converts a Zimbra part/attachment object to a pretty object
+     * https://files.zimbra.com/docs/soap_api/8.8.15/api-reference/zimbraMail/Search.html#tbl-SearchResponse-mp
+     */
     protected function createAttachment(object $part)
     {
         return (object)[
@@ -150,11 +177,14 @@ class Zimbra
         ];
     }
 
-    // Structured search to Zimbra query string :
-    // ['some search'] => '"some search"'
-    // ['in' => '/inbox/subdir', 'date' => '>=-3days'] => 'in:"/inbox/subdir" date:">=-3days"'
-    // $parameters can be object or array
-    protected function createQueryString($parameters)
+    /**
+     * Prepare structured search to Zimbra query search string
+     * ['some search'] => '"some search"'
+     * ['in' => '/Inbox/Subfolder', 'date' => '>=-3days'] => 'in:"/Inbox/Subfolder" date:">=-3days"'
+     * $parameters can be object or array
+     * Zimbra Web Client Search Tips : https://gist.github.com/sfaut/deb2c47161e9bebea23386adf55ec609
+     */
+    protected function prepareSearch($parameters)
     {
         $query = '';
 
@@ -172,27 +202,24 @@ class Zimbra
         return $query;
     }
 
-    // Prepares protected http context for unauthenticated request
-    // Returns JSON SOAP string
-    // i.e. without Header or authToken
-    /*
-        https://wiki.zimbra.com/wiki/Json_format_to_represent_soap
-
-        https://gist.github.com/be1/562195
-
-        * request encoded in UTF-8
-        * start with '{' for server to identify JSON content
-        * do not include "Envelope" object
-        * elements specified as "name": { ... }
-        * attributes specified as "name": "value"
-        * namespace attribute specified as "_jsns": "ns-uri"
-        * element text content specified as "_content": "content"
-        * element list specified as "name": [ ... ]
-
-        The response format is XML by default. To change, specify a "format"
-        element in the request's Header element with a "type" attribute.
-        The value must be either "xml" or "js".
-    */
+    /**
+     * Prepare protected http context for unauthenticated request
+     * Returns JSON SOAP string
+     * i.e. without Header or authToken
+     *
+     * https://gist.github.com/be1/562195
+     * -- request encoded in UTF-8
+     * -- start with '{' for server to identify JSON content
+     * -- do not include "Envelope" object
+     * -- elements specified as "name": { ... }
+     * -- attributes specified as "name": "value"
+     * -- namespace attribute specified as "_jsns": "ns-uri"
+     * -- element text content specified as "_content": "content"
+     * -- element list specified as "name": [ ... ]
+     * The response format is XML by default. To change, specify a "format"
+     * element in the request's Header element with a "type" attribute.
+     * The value must be either "xml" or "js".
+     */
     protected function prepareUnauthenticatedRequest(array $body): string
     {
         $request = ['Body' => $body];
@@ -201,9 +228,11 @@ class Zimbra
         return $request;
     }
 
-    // Prepares protected http context for authenticated request
-    // Returns JSON SOAP string
-    // i.e. with Header and authToken
+    /**
+     * Prepare a protected http context for authenticated request
+     * Returns JSON SOAP string
+     * i.e. with Header and authToken
+     */
     protected function prepareAuthenticatedRequest(array $body): string
     {
         $request = [
@@ -220,10 +249,12 @@ class Zimbra
         return $request;
     }
 
-    // Search body in response message
-    // Can be deep depending the message constitution
-    // Stop at the 1st record found
-    // Ex. : { part: 1, ct: text/plain, s: 22, body: true, content: ... }
+    /**
+     * Search body in response message
+     * Can be deep depending the message constitution
+     * Stop at the 1st record found
+     * Eg. : { part: 1, ct: text/plain, s: 22, body: true, content: ... }
+     */
     protected function searchBody(array $parts): ?object
     {
         foreach ($parts as $part) {
@@ -245,7 +276,10 @@ class Zimbra
         return null;
     }
 
-    // Search attachments in response message
+    /**
+     * Search attachments in response message
+     * Return an array of messages
+     */
     protected function searchAttachments(array $parts)
     {
         $attachments = [];
@@ -265,6 +299,13 @@ class Zimbra
         return $attachments;
     }
 
+    /**
+     * Instanciate Zimbra class and authenticate
+     * $host : eg. "https://zimbra.example.net", no trailing slash needed
+     * $user : eg. "my-email" or "my-email@free.fr"
+     * $password : your password
+     * Return a Zimbra instance or raise an exception on failure
+     */
     public static function authenticate(string $host, string $user, string $password)
     {
         $z = new self($host, $user, $password);
@@ -341,7 +382,7 @@ class Zimbra
      */
     public function search(array $parameters, int $limit = 1_000, int $offset = 0): array
     {
-        $query = $this->createQueryString($parameters);
+        $query = $this->prepareSearch($parameters);
 
         $this->prepareAuthenticatedRequest([
             // SearchDirectory request => Available starting Zimbra 9
