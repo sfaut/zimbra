@@ -46,7 +46,10 @@ class Zimbra
     protected $authenticatedUploadContext;      // POST
     protected $authenticatedDownloadContext;    // GET
 
-    // Messages' flags
+    /**
+     * Flags describing the state of the message
+     * Stored in string $message->flags
+     */
     protected $flags = [
         'u' => 'Unread',
         'f' => 'Flagged',
@@ -56,14 +59,16 @@ class Zimbra
         'w' => 'Forwarded',
         'v' => 'Calendar invite',
         'd' => 'Draft',
-        'x' => 'IMAP-\Deleted',
+        'x' => 'IMAP-Deleted',
         'n' => 'Notification sent',
         '!' => 'Urgent',
         '?' => 'Low-priority',
         '+' => 'Priority',
     ];
 
-    // Internal Zimbra email addresses types
+    /**
+     * Zimbra email addresses types
+     */
     protected array $types = [
         'f' => 'from',
         't' => 'to',
