@@ -1,0 +1,18 @@
+{
+    "name": "sfaut/zimbra",
+    "description": "Search, read and send simply Zimbra messages with PHP. Attachments are managed.",
+    "type": "library",
+    "authors": [
+        {
+            "name": "sfaut",
+            "email": "temposeb@free.fr"
+        }
+    ],
+    "minimum-stability": "dev",
+    "autoload": {
+        "psr-4": {
+            "sfaut\\": "src"
+        }
+    },
+    "require": {}
+}
