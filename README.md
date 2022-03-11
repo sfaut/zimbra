@@ -154,7 +154,7 @@ $body = <<<BUFFER
 $zimbra->send($addresses, $subject, $body);
 ```
 
-## Send a message to multiples recipients
+## Send a message to multiple recipients
 
 You can use arrays to specify multiple e-mail addresses :
 
@@ -171,7 +171,7 @@ $addresses = [
 $zimbra->send($addresses, $subject, $body);
 ```
 
-## Send message with attachment
+## Send a message with attachment
 
 4th `Zimbra::send()` parameter is an array of **attachments**.
 
