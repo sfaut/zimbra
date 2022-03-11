@@ -9,6 +9,40 @@ Based on [Zimbra 8 SOAP API](https://files.zimbra.com/docs/soap_api/8.8.15/api-r
 - E-mail messages are versatile. `sfaut\Zimbra` is a relatively **low-level** class whose aim is to provide a simple anonymous object representing a message and its main components. `sfaut\Zimbra` also provides some helper methods to send and get messages, upload and download attachments, explore directories structure, and make a search.
 - KISS – Fire & Forget
 
+## Composer installation
+
+You can add `sfaut\Zimbra` package to your project with Composer :
+
+```
+> composer require sfaut/zimbra
+```
+
+And include it as usual with autoloader :
+
+```php
+require_once '/path/to/vendor/autoload.php';
+
+$zimbra = sfaut\Zimbra::authenticate(...);
+
+// ...
+```
+
+## Raw installation
+
+`sfaut\Zimbra` is an unique class with no dependancies,
+so you can download [`/src/Zimbra.php`](https://github.com/sfaut/zimbra/blob/master/src/Zimbra.php)
+and include it in your script like any others scripts.
+
+```php
+<?php
+
+require_once '/path/to/sfaut/src/Zimbra.php';
+
+$zimbra = sfaut\Zimbra::authenticate(...);
+
+// ...
+```
+
 ## Object structure
 
 Here is a search response structure with an array of messages. A message is an anonymous object.
@@ -35,11 +69,11 @@ Here is a search response structure with an array of messages. A message is an a
             {
                 part: <Attachment's part message>
                 disposition: <MIME disposition, "inline" or "attachment">
-                type: <MIME type, ex. "text/csv">
+                type: <MIME type, eg. "text/csv">
                 size: <Attachment size, in bytes>
-                basename: <Attachment basename (with extension), ex. "Report.csv">
-                filename: <Attachment filename (without extension), ex. "Report">
-                extension: <Attachment extension without dot, ex. "csv">
+                basename: <Attachment basename (with extension), eg. "Report.csv">
+                filename: <Attachment filename (without extension), eg. "Report">
+                extension: <Attachment extension without dot, eg. "csv">
             }
             ...
         ]
@@ -58,7 +92,7 @@ An exception is raised on failure.
 
 use sfaut\Zimbra;
 
-require_once '/path/to/Zimbra.php';
+require_once '/path/to/sfaut/src/Zimbra.php';
 
 $host = 'https://zimbra.example.net';
 $user = 'root@example.net';
@@ -305,7 +339,7 @@ PHP and `sfaut\Zimbra` allows you to do that easily :)
 ```php
 <?php
 
-require_once __DIR__ . '/path/to/sfaut/Zimbra.php';
+require_once '/path/to/sfaut/src/Zimbra.php';
 
 // Starting attachment, you choose an all upper case reference
 $starting_file = 'REPORT 2020-01-01.CSV';
