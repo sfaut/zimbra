@@ -141,7 +141,7 @@ foreach ($messages as $i => $message) {
 ## Send a message
 
 ```php
-$addresses = ['to' => 'user@exemple.net'];
+$addresses = ['to' => 'user@example.net'];
 
 $subject = 'Hello!';
 
@@ -154,18 +154,18 @@ $body = <<<BUFFER
 $zimbra->send($addresses, $subject, $body);
 ```
 
-## Send a message with multiples recipients
+## Send a message to multiples recipients
 
 You can use arrays to specify multiple e-mail addresses :
 
 ```php
-// 1 mail to 4 recipients
+// 1 mail to 3 direct recipients, 1 carbon copy, 1 blind carbon copy
 // Response to trash
 $addresses = [
-    'to' => ['user1@exemple.net', 'user2@exemple.net'],
-    'cc' => 'ml@exemple.net',
-    'bcc' => 'archive@exemple.net',
-    'r' => 'trash@exemple.net',
+    'to' => ['user1@example.net', 'user2@example.net', 'user3@example.net'],
+    'cc' => 'ml@example.net',
+    'bcc' => 'archive@example.net',
+    'r' => 'trash@example.net',
 ];
 
 $zimbra->send($addresses, $subject, $body);
@@ -301,7 +301,8 @@ $buffer = stream_get_contents($attachment->stream);
 file_put_contents($destination_file, $buffer);
 ```
 
-You can filter attachments to retrieve with a closure accepting an attachment object as parameter (returning `true` by default).
+You can filter attachments to retrieve with a closure
+accepting an attachment object as parameter (returning `true` by default).
 
 ```php
 $message = $zimbra->search(['subject' => 'Summer 2022 holidays photos'])[0];
@@ -337,10 +338,6 @@ foreach ($attachments as $attachment) {
 PHP and `sfaut\Zimbra` allows you to do that easily :)
 
 ```php
-<?php
-
-require_once '/path/to/sfaut/src/Zimbra.php';
-
 // Starting attachment, you choose an all upper case reference
 $starting_file = 'REPORT 2020-01-01.CSV';
 
@@ -348,7 +345,7 @@ $starting_file = 'REPORT 2020-01-01.CSV';
 $source_folder = '/Inbox/Reports';
 
 // Locale target subdirectory, where all CSV attachments will be downloaded
-$target_directory = __DIR__ . '/mailbox/reports';
+$target_directory = '/path/to/mailbox/reports';
 
 // Search messages in source folder that have at least one CSV attachment begining with "Report"
 // You reduce unuseful messages retrieving
@@ -365,7 +362,7 @@ foreach ($messages as $message) {
         }
         return true;
     });
-    // Save CSV attachments in safe place
+    // Save CSV attachments in compressed files in safe place
     foreach ($attachments as $attachment) {
         $target_file = "{$target_directory}/{$message->subject} -- {$attachment->basename}.gz";
         $target_stream = gzopen($target_file, 'w');
