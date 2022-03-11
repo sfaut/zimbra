@@ -4,25 +4,25 @@ namespace sfaut;
 
 class Zimbra
 {
-    /**
+    /*
      * Zimbra scheme and host
      * eg. "https://zimbra.example.net" or "https://www.example.net/zimbra"
      */
     protected string $host;
 
-    /**
+    /*
      * User account, generally an e-mail address
      * eg. "user@examplet.net" or "user"
      */
     protected string $user;
 
-    /**
+    /*
      * Zimbra SOAP service endpoint
      * Often "/service/soap"
      */
     protected string $soap;
 
-    /**
+    /*
      * Zimbra attachment upload service
      * Often "/service/upload"
      * Query "?fmt=raw" strips the response HTML ank data only
@@ -30,7 +30,7 @@ class Zimbra
      */
     protected string $upload;
 
-    /**
+    /*
      * Zimbra attachment download service
      * Often "/service/content/get"
      * Query "?id=%d&part=%s" specifies the part/attachment to download
@@ -46,7 +46,7 @@ class Zimbra
     protected $authenticatedUploadContext;      // POST
     protected $authenticatedDownloadContext;    // GET
 
-    /**
+    /*
      * Flags describing the state of the message
      * Stored in string $message->flags
      */
@@ -66,7 +66,7 @@ class Zimbra
         '+' => 'Priority',
     ];
 
-    /**
+    /*
      * Zimbra email addresses types
      */
     protected array $types = [
@@ -80,7 +80,7 @@ class Zimbra
         'rf' => 'resent-from',
     ];
 
-    /**
+    /*
      * Instanciate an instance, for internal use only
      * End user must use Zimbra::authenticate()
      */
@@ -124,7 +124,7 @@ class Zimbra
         return $buffer;
     }
 
-    /**
+    /*
      * Convert a Zimbra message object to a pretty object
      * https://files.zimbra.com/docs/soap_api/8.8.15/api-reference/zimbraMail/Search.html#tbl-SearchResponse-m
      */
@@ -146,7 +146,7 @@ class Zimbra
         ];
     }
 
-    /**
+    /*
      * Search message addresses and group them by type
      * eg. : { to: [...], cc: [...], ... }
      */
@@ -165,7 +165,7 @@ class Zimbra
         );
     }
 
-    /**
+    /*
      * Converts a Zimbra part/attachment object to a pretty object
      * https://files.zimbra.com/docs/soap_api/8.8.15/api-reference/zimbraMail/Search.html#tbl-SearchResponse-mp
      */
@@ -182,7 +182,7 @@ class Zimbra
         ];
     }
 
-    /**
+    /*
      * Prepare structured search to Zimbra query search string
      * ['some search'] => '"some search"'
      * ['in' => '/Inbox/Subfolder', 'date' => '>=-3days'] => 'in:"/Inbox/Subfolder" date:">=-3days"'
@@ -207,7 +207,7 @@ class Zimbra
         return $query;
     }
 
-    /**
+    /*
      * Prepare protected http context for unauthenticated request
      * Returns JSON SOAP string
      * i.e. without Header or authToken
@@ -233,7 +233,7 @@ class Zimbra
         return $request;
     }
 
-    /**
+    /*
      * Prepare a protected http context for authenticated request
      * Returns JSON SOAP string
      * i.e. with Header and authToken
@@ -254,7 +254,7 @@ class Zimbra
         return $request;
     }
 
-    /**
+    /*
      * Search body in response message
      * Can be deep depending the message constitution
      * Stop at the 1st record found
@@ -281,7 +281,7 @@ class Zimbra
         return null;
     }
 
-    /**
+    /*
      * Search attachments in response message
      * Return an array of messages
      */
@@ -304,7 +304,7 @@ class Zimbra
         return $attachments;
     }
 
-    /**
+    /*
      * Instanciate Zimbra class and authenticate
      * $host : eg. "https://zimbra.example.net", no trailing slash needed
      * $user : eg. "my-email" or "my-email@free.fr"
@@ -344,7 +344,7 @@ class Zimbra
         return $z;
     }
 
-    /**
+    /*
      * Do a SearchRequest
      * https://files.zimbra.com/docs/soap_api/8.8.15/api-reference/zimbraMail/Search.html
      *
@@ -422,7 +422,7 @@ class Zimbra
         return $result;
     }
 
-    /**
+    /*
      * Get folder's folders
      * https://files.zimbra.com/docs/soap_api/8.8.15/api-reference/zimbraMail/GetFolder.html
      * TODO : beautify result
@@ -458,7 +458,7 @@ class Zimbra
         return $folders;
     }
 
-    /**
+    /*
      * Retrieves attachments from $message according to $filter closure
      * Returns an array of attachments objects to which a stream property has been added
      */
@@ -482,7 +482,7 @@ class Zimbra
         return $attachments;
     }
 
-    /**
+    /*
      * Upload files in a row (but with multiple API calls) to attach to messages
      * Param is an array of object|array attachments { basename, buffer|stream|file }
      * On success returns an array of objects attachments with attachment-id (2 × UUID) property added
@@ -566,7 +566,7 @@ class Zimbra
         return $aids;
     }
 
-    /**
+    /*
      * Convert adresses to Zimbra format for SOAP request
      * Ex. ['to' => ['user@exemple.net']] to [['t' => 't', 'a' => 'user@exemple.net']]
      */
@@ -589,7 +589,7 @@ class Zimbra
         return $result;
     }
 
-    /**
+    /*
      * Convert attachments array to Zimbra format for SOAP request
      * Upload files if not already uploaded (if they don't have "id" property)
      * Returns an array of attachments IDs
@@ -613,7 +613,7 @@ class Zimbra
         return $aids;
     }
 
-    /**
+    /*
      * Send a message
      * https://files.zimbra.com/docs/soap_api/8.8.15/api-reference/zimbraMail/SendMsg.html
      *
