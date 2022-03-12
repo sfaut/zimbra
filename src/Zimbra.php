@@ -11,7 +11,8 @@ class Zimbra
     protected string $host;
 
     /*
-     * Zimbra user account, generally an e-mail address
+     * Zimbra user account
+     * Often an e-mail address
      * eg. "user@examplet.net" or "user"
      */
     protected string $user;
@@ -47,6 +48,7 @@ class Zimbra
     /*
      * Flags describing the state of the message
      * Stored in string $message->flags
+     * https://files.zimbra.com/docs/soap_api/8.8.15/api-reference/zimbraMail/SendMsg.html#tbl-SendMsgResponse-m-f
      */
     protected $flags = [
         'u' => 'Unread',
@@ -66,6 +68,7 @@ class Zimbra
 
     /*
      * Zimbra email addresses types
+     * https://files.zimbra.com/docs/soap_api/8.8.15/api-reference/zimbraMail/SendMsg.html#tbl-SendMsgRequest-m-e-t
      */
     protected array $types = [
         'f' => 'from',
@@ -76,6 +79,24 @@ class Zimbra
         's' => 'sender, read-receipt',
         'n' => 'notification', // read-receipt notification
         'rf' => 'resent-from',
+    ];
+
+    /*
+     * Zimbra SearchRequest sorting capacities
+     * Default "dateDesc"
+     * https://files.zimbra.com/docs/soap_api/8.8.15/api-reference/zimbraMail/Search.html#tbl-SearchRequest-sortBy
+     */
+    protected array $sorts = [
+        'none', // No cursor possible with this
+        'dateAsc', 'dateDesc',
+        'subjAsc', 'subjDesc',
+        'nameAsc', 'nameDesc',
+        'rcptAsc', 'rcptDesc',
+        'attachAsc', 'attachDesc',
+        'flagAsc', 'flagDesc',
+        'priorityAsc', 'priorityDesc',
+        'idAsc', 'idDesc',
+        'readAsc', 'readDesc',
     ];
 
     /*
@@ -98,8 +119,8 @@ class Zimbra
 
     /*
      * Fetch a POST SOAP request to /service/soap
-     * $request is an object representing the SOAP body
-     * SOAP header and join token session if not null are added
+     * $request is an associative array representing the SOAP body
+     * SOAP header and token session (if not null) are added
      * Return the JSON response decoded
      *
      * https://gist.github.com/be1/562195 :
@@ -115,7 +136,7 @@ class Zimbra
      * element in the request's Header element with a "type" attribute.
      * The value must be either "xml" or "js".
      */
-    protected function fetch($body)
+    protected function fetch(array $body)
     {
         // SOAP request construction
         $request = [
