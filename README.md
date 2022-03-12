@@ -20,6 +20,8 @@ You can add `sfaut\Zimbra` package to your project with Composer :
 And include it as usual with autoloader :
 
 ```php
+<?php
+
 require_once '/path/to/vendor/autoload.php';
 
 $zimbra = sfaut\Zimbra::authenticate(...);
@@ -45,7 +47,7 @@ $zimbra = sfaut\Zimbra::authenticate(...);
 
 ## Object structure
 
-Here is a search response structure with an array of messages. A message is an anonymous object.
+Here is a search response structure within an array of messages. A message is an anonymous object.
 
 ```
 [
@@ -101,11 +103,11 @@ $password = 'M;P455w0r|)';
 $zimbra = Zimbra::authenticate($host, $user, $password);
 ```
 
-> To shorten following examples, `use`, `require` and authentication will be snipped. Assume `sfaut\Zimbra` is instanciate in `$zimbra`.
+> To shorten following examples, `use`, `require` and others out of scope parts will be snipped. Assume `sfaut\Zimbra` is instanciate in `$zimbra`.
 
 ## Error management
 
-An exception is raised when authentication or an other `sfaut\Zimbra` statement failed.
+`sfaut\Zimbra` is exceptions-oriented.
 So, you should encapsulate statements within `try / catch / finally` blocks.
 
 ```php
@@ -338,6 +340,13 @@ foreach ($attachments as $attachment) {
 PHP and `sfaut\Zimbra` allows you to do that easily :)
 
 ```php
+<?php
+
+use sfaut\Zimbra;
+
+require_once '/path/to/vendor/autoload.php';
+require_once '/path/to/settings.php';
+
 // Starting attachment, you choose an all upper case reference
 $starting_file = 'REPORT 2020-01-01.CSV';
 
@@ -346,6 +355,8 @@ $source_folder = '/Inbox/Reports';
 
 // Locale target subdirectory, where all CSV attachments will be downloaded
 $target_directory = '/path/to/mailbox/reports';
+
+$zimbra = Zimbra::authenticate($host, $user, $password);
 
 // Search messages in source folder that have at least one CSV attachment begining with "Report"
 // You reduce unuseful messages retrieving
@@ -369,6 +380,8 @@ foreach ($messages as $message) {
         stream_copy_to_stream($attachment->stream, $target_stream);
     }
 }
+
+exit(0);
 ```
 
 That's all Folks! 🐰
