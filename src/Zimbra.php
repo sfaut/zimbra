@@ -11,7 +11,7 @@ class Zimbra
     protected string $host;
 
     /*
-     * User account, generally an e-mail address
+     * Zimbra user account, generally an e-mail address
      * eg. "user@examplet.net" or "user"
      */
     protected string $user;
@@ -23,7 +23,7 @@ class Zimbra
     protected string $soap;
 
     /*
-     * Zimbra attachment upload service
+     * Zimbra attachment upload service endpoint
      * Often "/service/upload"
      * Query "?fmt=raw" strips the response HTML ank data only
      * Query "?fmt=raw,extended" gives additional informations, but JSON/CSV malformed
@@ -31,20 +31,18 @@ class Zimbra
     protected string $upload;
 
     /*
-     * Zimbra attachment download service
+     * Zimbra attachment download service endpoint
      * Often "/service/content/get"
      * Query "?id=%d&part=%s" specifies the part/attachment to download
      * eg. "?id=34299&part=2.1" for user message ID "34299" message part "2.1"
      */
-    protected string $content;  // Attachment download URL
+    protected string $content;
 
-    protected ?string $session; // Session token
-    protected $context;         // Base stream context
-
-    protected $unauthenticatedSoapContext;      // POST
-    protected $authenticatedSoapContext;        // POST
-    protected $authenticatedUploadContext;      // POST
-    protected $authenticatedDownloadContext;    // GET
+    /*
+     * Session auth token
+     * To use in SOAP header
+     */
+    protected ?string $session;
 
     /*
      * Flags describing the state of the message
@@ -84,44 +82,72 @@ class Zimbra
      * Instanciate an instance, for internal use only
      * End user must use Zimbra::authenticate()
      */
-    protected function __construct(string $host, string $user, string $password)
+    protected function __construct(string $host, string $user)
     {
         $this->host = $host;
         $this->user = $user;
+
+        // Zimbra services endpoints initialization
         $this->soap = "{$this->host}/service/soap/";
         $this->upload = "{$this->host}/service/upload?fmt=raw";
         $this->content = "{$this->host}/service/content/get?id=%s&part=%s";
 
-        $this->context = stream_context_create([
+        // Not authenticated yet
+        $this->session = null;
+    }
+
+    /*
+     * Fetch a POST SOAP request to /service/soap
+     * $request is an object representing the SOAP body
+     * SOAP header and join token session if not null are added
+     * Return the JSON response decoded
+     *
+     * https://gist.github.com/be1/562195 :
+     * -- request encoded in UTF-8
+     * -- start with '{' for server to identify JSON content
+     * -- do not include "Envelope" object
+     * -- elements specified as "name": { ... }
+     * -- attributes specified as "name": "value"
+     * -- namespace attribute specified as "_jsns": "ns-uri"
+     * -- element text content specified as "_content": "content"
+     * -- element list specified as "name": [ ... ]
+     * The response format is XML by default. To change, specify a "format"
+     * element in the request's Header element with a "type" attribute.
+     * The value must be either "xml" or "js".
+     */
+    protected function fetch($body)
+    {
+        // SOAP request construction
+        $request = [
+            'Header' => ['context' => ['_jsns' => 'urn:zimbra']],
+            'Body' => $body,
+        ];
+
+        // Add auth token to header if defined
+        if ($this->session !== null) {
+            $request['Header']['context']['authToken']['_content'] = $this->session;
+        }
+
+        $request = json_encode($request);
+
+        $context = stream_context_create([
             'http' => [
                 'method' => 'POST',
                 'header' => ['Content-Type: application/json'],
-                'content' => null,
+                'content' => $request,
                 'ignore_errors' => true,
             ],
         ]);
-    }
 
-    protected function fetchAttachment(int $id, string $part)
-    {
-        $url = sprintf($this->content, $id, $part);
+        $response = @file_get_contents($this->soap, false, $context);
 
-        $context = [
-            'http' => [
-                'method' => 'GET',
-                'header' => ["Cookie: ZM_AUTH_TOKEN={$this->session}"],
-            ],
-        ];
-
-        $context = stream_context_create($context);
-
-        $buffer = @file_get_contents($url, false, $context);
-
-        if ($buffer === false) {
-            throw new \Exception("Unable to download attachment message ID {$id} part {$part}");
+        if ($response === false) {
+            throw new \Exception('An error occurs while fetching SOAP request');
         }
 
-        return $buffer;
+        $response = json_decode($response);
+
+        return $response;
     }
 
     /*
@@ -171,6 +197,9 @@ class Zimbra
      */
     protected function createAttachment(object $part)
     {
+        // TODO : check en/decoding HTTP header field-value
+        $part->filename = rawurldecode($part->filename);
+
         return (object)[
             'part' => $part->part,
             'disposition' => $part->cd,
@@ -205,53 +234,6 @@ class Zimbra
         $query = substr($query, 0, -1);
 
         return $query;
-    }
-
-    /*
-     * Prepare protected http context for unauthenticated request
-     * Returns JSON SOAP string
-     * i.e. without Header or authToken
-     *
-     * https://gist.github.com/be1/562195
-     * -- request encoded in UTF-8
-     * -- start with '{' for server to identify JSON content
-     * -- do not include "Envelope" object
-     * -- elements specified as "name": { ... }
-     * -- attributes specified as "name": "value"
-     * -- namespace attribute specified as "_jsns": "ns-uri"
-     * -- element text content specified as "_content": "content"
-     * -- element list specified as "name": [ ... ]
-     * The response format is XML by default. To change, specify a "format"
-     * element in the request's Header element with a "type" attribute.
-     * The value must be either "xml" or "js".
-     */
-    protected function prepareUnauthenticatedRequest(array $body): string
-    {
-        $request = ['Body' => $body];
-        $request = json_encode($request);
-        stream_context_set_option($this->context, 'http', 'content', $request);
-        return $request;
-    }
-
-    /*
-     * Prepare a protected http context for authenticated request
-     * Returns JSON SOAP string
-     * i.e. with Header and authToken
-     */
-    protected function prepareAuthenticatedRequest(array $body): string
-    {
-        $request = [
-            'Header' => [
-                'context' => [
-                    '_jsns' => 'urn:zimbra',
-                    'authToken' => ['_content' => $this->session],
-                ],
-            ],
-            'Body' => $body,
-        ];
-        $request = json_encode($request);
-        stream_context_set_option($this->context, 'http', 'content', $request);
-        return $request;
     }
 
     /*
@@ -313,23 +295,21 @@ class Zimbra
      */
     public static function authenticate(string $host, string $user, string $password)
     {
-        $z = new self($host, $user, $password);
+        $z = new self($host, $user);
 
-        $z->prepareUnauthenticatedRequest([
+        $request = [
             'AuthRequest' => [
                 '_jsns' => 'urn:zimbraAccount',
                 'account' => ['by' => 'name', '_content' => $z->user],
                 'password' => ['_content' => $password],
             ],
-        ]);
+        ];
 
-        $response = @file_get_contents($z->soap, false, $z->context);
+        $response = $z->fetch($request);
 
         if ($response === false) {
             throw new \Exception('Unable to authenticate');
         }
-
-        $response = json_decode($response);
 
         if (isset($response->Body->Fault)) {
             throw new \Exception('Authentication failed');
@@ -389,25 +369,26 @@ class Zimbra
     {
         $query = $this->prepareSearch($parameters);
 
-        $this->prepareAuthenticatedRequest([
+        $request = [
             // SearchDirectory request => Available starting Zimbra 9
             // Zimbra 8 => https://files.zimbra.com/docs/soap_api/8.8.8/api-reference/index.html
             'SearchRequest' => [
                 '_jsns' => 'urn:zimbraMail',
                 'types' => 'message',
-                'sortBy' => 'dateDesc',
+                'sortBy' => 'dateDesc', // TODO : customize sort keys and sort orders
                 'fetch' => 'all',
                 'limit' => $limit,
                 'offset' => $offset,
                 'query' => ['_content' => $query],
                 'locale' => ['_content' => 'fr_CA'], // For date format yyyy-mm-dd
             ],
-        ]);
+        ];
 
-        $response = file_get_contents($this->soap, false, $this->context);
+        $response = $this->fetch($request);
 
-        $response = json_decode($response);
         $messages = $response->Body->SearchResponse->m ?? [];
+
+        // TODO : customize sort keys and sort orders
         $messages = array_reverse($messages); // Olders first
 
         $result = [];
@@ -416,8 +397,8 @@ class Zimbra
         }
 
         // Temporary statements, for dev purpose
-        file_put_contents(__DIR__ . '/dump-raw.json', json_encode($messages, JSON_PRETTY_PRINT));
-        file_put_contents(__DIR__ . '/dump-parsed.json', json_encode($result, JSON_PRETTY_PRINT));
+        // file_put_contents(__DIR__ . '/dump-raw.json', json_encode($messages, JSON_PRETTY_PRINT));
+        // file_put_contents(__DIR__ . '/dump-parsed.json', json_encode($result, JSON_PRETTY_PRINT));
 
         return $result;
     }
@@ -429,7 +410,7 @@ class Zimbra
      */
     public function explore(string $name, int $depth = null)
     {
-        $this->prepareAuthenticatedRequest([
+        $request = [
             'GetFolderRequest' => [
                 '_jsns' => 'urn:zimbraMail',
                 'depth' => $depth,
@@ -439,15 +420,9 @@ class Zimbra
                     'path' => $name,
                 ],
             ],
-        ]);
+        ];
 
-        $response = @file_get_contents($this->soap, false, $this->context);
-
-        if ($response === false) {
-            throw new \Exception('Unable to get folder contents');
-        }
-
-        $response = json_decode($response);
+        $response = $this->fetch($request);
 
         $folders = $response->Body->GetFolderResponse ?? false;
 
@@ -460,6 +435,7 @@ class Zimbra
 
     /*
      * Retrieves attachments from $message according to $filter closure
+     * By default retrieves all attachments
      * Returns an array of attachments objects to which a stream property has been added
      */
     public function download(object $message, callable $filter = null): array
@@ -468,12 +444,29 @@ class Zimbra
             $filter = fn ($attachment) => true;
         }
 
+        $context = [
+            'http' => [
+                'method' => 'GET',
+                'header' => ["Cookie: ZM_AUTH_TOKEN={$this->session}"],
+            ],
+        ];
+
+        $context = stream_context_create($context);
+
         $attachments = [];
 
         foreach ($message->attachments as $attachment) {
             if ($filter($attachment)) {
+                $url = sprintf($this->content, $message->id, $attachment->part);
+                $stream_source = @fopen($url, 'r', false, $context);
+                if ($stream_source === false) {
+                    throw new \Exception(
+                        'Unable to download attachment from '
+                        . "message ID {$message->id} part {$message->part}"
+                    );
+                }
                 $attachment->stream = tmpfile(); // Open as "w+"
-                fwrite($attachment->stream, $this->fetchAttachment($message->id, $attachment->part));
+                stream_copy_to_stream($stream_source, $attachment->stream);
                 rewind($attachment->stream); // Mandatory, otherwise file pointer at end
                 $attachments[] = $attachment;
             }
@@ -524,7 +517,10 @@ class Zimbra
                 );
             }
 
-            // Good encoding for HTTP header value ?
+            // TODO
+            // Good encoding for HTTP header value ? Check that ⤵️
+            // https://stackoverflow.com/questions/93551/how-to-encode-the-filename-parameter-of-content-disposition-header-in-http
+            // https://stackoverflow.com/questions/4400678/what-character-encoding-should-i-use-for-a-http-header
             $basename_encoded = rawurlencode($attachment->basename);
 
             $context = [
@@ -637,7 +633,9 @@ class Zimbra
      *
      * Returns the Zimbra message sent structure
      *
-     * TODO: return a sfaut\Zimbra message structure or null if fails
+     * TODO:
+     * -- Return a sfaut\Zimbra message structure or null if fails
+     * -- Send text/html messages
      */
     public function send(
         array $addresses, string $subject, string $body,
@@ -651,31 +649,23 @@ class Zimbra
                 'm' => [
                     'e' => $this->prepareAddresses($addresses),
                     'su' => $subject,
-                    'f' => $flags ?? '',
+                    'f' => $flags ?? '', // TODO : implement that
                     'mp' => [
-                        'ct' => $type ?? 'text/plain',
+                        'ct' => $type ?? 'text/plain', // TODO : flex that
                         'content' => ['_content' => $body],
                     ],
                 ],
             ],
         ];
 
-        // We must not send an empty aid, elsewhere Zimbra fails
+        // We must not send an empty aid, elsewhere Zimbra miserably fails
         if (!empty($attachments)) {
             $aids = $this->prepareAttachments($attachments);
             $aids = implode(',', $aids);
             $request['SendMsgRequest']['m']['attach']['aid'] = $aids;
         }
 
-        $this->prepareAuthenticatedRequest($request);
-
-        $response = @file_get_contents($this->soap, false, $this->context);
-
-        if ($response === false) {
-            throw new \Exception('Error while sending message');
-        }
-
-        $response = json_decode($response);
+        $response = $this->fetch($request);
 
         return $response;
     }
