@@ -14,5 +14,7 @@
             "sfaut\\": "src"
         }
     },
-    "require": {}
+    "require": {
+        "php": ">=7"
+    }
 }
