@@ -21,7 +21,7 @@ class Zimbra
      * Zimbra SOAP service endpoint
      * Often "/service/soap"
      */
-    protected string $soap;
+    protected string $endpointSoap;
 
     /*
      * Zimbra attachment upload service endpoint
@@ -29,7 +29,7 @@ class Zimbra
      * Query "?fmt=raw" strips the response HTML ank data only
      * Query "?fmt=raw,extended" gives additional informations, but JSON/CSV malformed
      */
-    protected string $upload;
+    protected string $endpointUpload;
 
     /*
      * Zimbra attachment download service endpoint
@@ -37,7 +37,7 @@ class Zimbra
      * Query "?id=%d&part=%s" specifies the part/attachment to download
      * eg. "?id=34299&part=2.1" for user message ID "34299" message part "2.1"
      */
-    protected string $content;
+    protected string $endpointContent;
 
     /*
      * Session auth token
@@ -86,7 +86,7 @@ class Zimbra
      * Default "dateDesc"
      * https://files.zimbra.com/docs/soap_api/8.8.15/api-reference/zimbraMail/Search.html#tbl-SearchRequest-sortBy
      */
-    protected array $sorts = [
+    protected array $sorting = [
         'none', // No cursor possible with this
         'dateAsc', 'dateDesc',
         'subjAsc', 'subjDesc',
@@ -109,9 +109,9 @@ class Zimbra
         $this->user = $user;
 
         // Zimbra services endpoints initialization
-        $this->soap = "{$this->host}/service/soap/";
-        $this->upload = "{$this->host}/service/upload?fmt=raw";
-        $this->content = "{$this->host}/service/content/get?id=%s&part=%s";
+        $this->endpointSoap = "{$this->host}/service/soap/";
+        $this->endpointUpload = "{$this->host}/service/upload?fmt=raw";
+        $this->endpointContent = "{$this->host}/service/content/get?id=%s&part=%s";
 
         // Not authenticated yet
         $this->session = null;
@@ -160,7 +160,7 @@ class Zimbra
             ],
         ]);
 
-        $response = @file_get_contents($this->soap, false, $context);
+        $response = @file_get_contents($this->endpointSoap, false, $context);
 
         if ($response === false) {
             throw new \Exception('An error occurs while fetching SOAP request');
@@ -478,7 +478,7 @@ class Zimbra
 
         foreach ($message->attachments as $attachment) {
             if ($filter($attachment)) {
-                $url = sprintf($this->content, $message->id, $attachment->part);
+                $url = sprintf($this->endpointContent, $message->id, $attachment->part);
                 $stream_source = @fopen($url, 'r', false, $context);
                 if ($stream_source === false) {
                     throw new \Exception(
@@ -563,7 +563,7 @@ class Zimbra
             // raw,extended response gives unvalid CSV, ex. :
             // 200,'null',[{"aid":"63f347f0-df57-...","ct":"text/plain","filename":"name.txt","s":73}]
             // => JSON not delimited and not escaped!
-            $response = @file_get_contents($this->upload, false, $context);
+            $response = @file_get_contents($this->endpointUpload, false, $context);
 
             if ($response === false) {
                 throw new \Exception("Upload of file {$basename} failed");
