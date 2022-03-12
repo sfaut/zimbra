@@ -330,11 +330,11 @@ foreach ($attachments as $attachment) {
 - Messages are stored on mailbox in folder `/Inbox/Reports`
 - Each message has 0 to n attachments
 - Attachments can be of any types like `.csv`, `.xlsx`, `.pdf`, etc., and you need to retrieve only `.csv`
-- CSV files are named in the following format : `Report Y-m-d.csv`, ex. `Report 2022-03-06.csv`
+- CSV files are named in the following format : `Report Y-m-d.csv`, eg. `Report 2022-03-06.csv`
 - Filename, and its extension, can be in lower or upper case, or mix, you need to manage that
-- You must download all CSV attachments starting `2020-01-01`, ex. `Report 2019-12-31.csv` is not downloaded whereas `Report 2020-01-01.csv` is downloaded
+- You must download all CSV attachments starting `2020-01-01`, eg. `Report 2019-12-31.csv` is not downloaded whereas `Report 2020-01-01.csv` is downloaded
 - There are a lot of files, so you must save them as Gzip files
-- Each message subject is unique, but each attachment name is not, so attachments downloaded must have a name in format `Message subject -- Attachment basename.gz`, ex. `Report 2020-01-01.csv.gz`
+- Each message subject is unique, but each attachment name is not, so attachments downloaded must have a name in format `Message subject -- Attachment basename.gz`, eg. `Report 2020-01-01.csv.gz`
 - Target directory is the locale subdirectory `/mailbox/reports`
 
 PHP and `sfaut\Zimbra` allows you to do that easily :)
