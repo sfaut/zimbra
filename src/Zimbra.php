@@ -293,7 +293,7 @@ class Zimbra
         $attachments = [];
 
         foreach ($parts as $part) {
-            if (in_array($part->cd ?? null, ['inline', 'attachment'])) {
+            if (in_array($part->cd ?? null, ['inline', 'attachment']) && isset($part->filename)) {
                 $attachments[] = $this->createAttachment($part);
             }
             if (isset($part->mp)) {
