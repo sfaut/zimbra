@@ -362,7 +362,13 @@ class Zimbra
      * $offset
      *      Zimbra pager, starting retrieving index
      *      Default is 0
-     *
+     * 
+     * $is_raw
+     *      How parameters are managed
+     *      true : parameters keys and values are used like ['to' => 'you@example.net', 'E-mail subject'] => « to:"me@example.net" "E-mail subject" »
+     *      false : parameters are just concatenated : ['to:you@example.net', '"E-mail subject"'] => « to:you@example.net "E-mail subject" »
+     *      Default is false
+     * 
      * Some parameters :
      * in => folder path
      * under => specifies searching a folder and its sub-folders
@@ -386,9 +392,16 @@ class Zimbra
      * before => ...
      * is => read|unread|...
      */
-    public function search(array $parameters, int $limit = 1_000, int $offset = 0): array
+    public function search(array $parameters, int $limit = 1_000, int $offset = 0, bool $is_raw = false): array
     {
-        $query = $this->prepareSearch($parameters);
+        if (!$is_raw) {
+            // Use the $parameters' keys and quote the parameters
+            $query = $this->prepareSearch($parameters);
+        } else {
+            // The $paramters' keys are not used and no auto-quoting
+            // Just concatenate the parameters
+            $query = implode(' ', $parameters);
+        }
 
         $request = [
             // SearchDirectory request => Available starting Zimbra 9
