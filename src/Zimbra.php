@@ -551,10 +551,6 @@ class Zimbra
                 );
             }
 
-            // TODO
-            // Good encoding for HTTP header value ? Check that ⤵️
-            // https://stackoverflow.com/questions/93551/how-to-encode-the-filename-parameter-of-content-disposition-header-in-http
-            // https://stackoverflow.com/questions/4400678/what-character-encoding-should-i-use-for-a-http-header
             $basename_encoded = rawurlencode($attachment->basename);
 
             $context = [
@@ -562,7 +558,7 @@ class Zimbra
                     'method' => 'POST',
                     'header' => [
                         'Content-Type: application/octet-stream',
-                        "Content-Disposition: attachment; filename=\"{$basename_encoded}\"",
+                        "Content-Disposition: attachment; filename*=utf8''{$basename_encoded}",
                         "Cookie: ZM_AUTH_TOKEN={$this->session}",
                         'Content-Transfer-Encoding: binary',
                     ],
