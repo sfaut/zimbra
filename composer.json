@@ -2,12 +2,20 @@
     "name": "sfaut/zimbra",
     "description": "Search, read and send simply Zimbra messages with PHP. Attachments are managed.",
     "type": "library",
+    "homepage": "https://github.com/sfaut/zimbra",
+    "license": "MIT",
     "authors": [
         {
-            "name": "sfaut",
-            "email": "temposeb@free.fr"
+            "name": "Sébastien",
+            "email": "sebastien.faut@gmail.com",
+            "homepage": "https://github.com/sfaut",
+            "role": "Developer"
         }
     ],
+    "support": {
+        "docs": "https://github.com/sfaut/zimbra/blob/master/README.md",
+        "issues": "https://github.com/sfaut/zimbra/issues"
+    },
     "minimum-stability": "dev",
     "autoload": {
         "psr-4": {
