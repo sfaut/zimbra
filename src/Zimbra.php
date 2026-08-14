@@ -471,10 +471,6 @@ class Zimbra
             $result[] = $this->createMessage($message);
         }
 
-        // Temporary statements, for dev purpose
-        // file_put_contents(__DIR__ . '/dump-raw.json', json_encode($messages, JSON_PRETTY_PRINT));
-        // file_put_contents(__DIR__ . '/dump-parsed.json', json_encode($result, JSON_PRETTY_PRINT));
-
         return $result;
     }
 
