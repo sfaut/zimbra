@@ -463,7 +463,6 @@ class Zimbra
 
         $messages = $response->Body->SearchResponse->m ?? [];
 
-        // TODO : customize sort keys and sort orders
         $messages = array_reverse($messages); // Olders first
 
         $result = [];
