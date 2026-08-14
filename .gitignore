@@ -1,4 +1,5 @@
 .env
-/src/dump*
-/tests/
 /vendor/
+/dumps/
+/sandbox/
+/playground/
